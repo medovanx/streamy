@@ -3,6 +3,12 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-19
+
+### Added
+- File manager: browse the phone's storage with Windows' own icons, sizes and dates; download files and folders to the PC; upload with a button or by dropping files and folders from Explorer; create folders, rename (never overwriting) and delete with a confirmation. Double-click a file to open it on the PC. **Places** jumps to Download, Camera, Screenshots and other common folders, and any path can be typed. Open it with **Files** in the main window, **Browse files** on a phone's right-click menu, or the new folder button on a phone's toolbar.
+- `--files SERIAL OUT` developer switch: runs every file operation in a throwaway folder on the phone.
+
 ## [1.0.0] - 2026-11-19
 
 Everything planned for 1.0: sound, recording, files, Wi-Fi pairing, phone details and settings.
@@ -71,6 +77,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.1.0]: https://github.com/medovanx/streamy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/medovanx/streamy/releases/tag/v1.0.0
 [0.3.0]: https://github.com/medovanx/streamy/releases/tag/v0.3.0
 [0.2.0]: https://github.com/medovanx/streamy/releases/tag/v0.2.0

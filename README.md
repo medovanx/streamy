@@ -7,8 +7,8 @@
 **Your Android phone in a window on your PC. Watch it, hear it, control it, over USB or Wi-Fi.**
 
 Streamy mirrors an Android phone's screen to Windows and lets you use it with your mouse and keyboard.
-It plays the phone's sound on the PC, records to MP4, takes screenshots, installs APKs and sends files
-by drag and drop, and shares the clipboard. Nothing is installed on the phone, and several phones can run
+It plays the phone's sound on the PC, records to MP4, takes screenshots, browses and manages the phone's files,
+installs APKs by drag and drop, and shares the clipboard. Nothing is installed on the phone, and several phones can run
 side by side, each in its own window.
 
 [![Release](https://img.shields.io/github/v/release/medovanx/streamy?style=flat-square&color=0870a8)](https://github.com/medovanx/streamy/releases/latest)
@@ -33,10 +33,11 @@ side by side, each in its own window.
 - **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses (Arabic, accents and emoji go through the phone's clipboard and are pasted), and shortcuts like Ctrl+A or Ctrl+C work.
 - **Sound.** The phone's audio plays on the PC (Android 11+), kept in sync with the picture, with mute and volume.
 - **Record and capture.** Record the screen and sound to MP4 without re-encoding, or save a full-resolution screenshot that is also copied to the clipboard.
+- **File manager.** Browse the phone's storage, download files and folders to the PC, upload by button or by dropping them from Explorer, create folders, rename and delete. Double-click a file to open it on the PC.
 - **Files and apps.** Drop APKs on a phone's window to install or update them; drop any other file to put it in the phone's Download folder, where Gallery and Files see it at once.
 - **Clipboard.** Copy on the phone, paste on the PC. Ctrl+V in the window pastes the PC's clipboard on the phone.
 - **Phone details.** Android version, model, build, CPU, GPU, RAM, storage, battery and screen of the selected phone, beside the device list.
-- **Toolbar.** Power, volume, rotate, Back, Home, Recent apps, notifications, screenshot, record, mute, fullscreen and keep on top, beside each phone's screen.
+- **Toolbar.** Power, volume, rotate, Back, Home, Recent apps, notifications, files, screenshot, record, mute, fullscreen and keep on top, beside each phone's screen.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
@@ -47,6 +48,9 @@ side by side, each in its own window.
 <table>
   <tr>
     <td align="center" colspan="2"><img src="docs/screenshots/session.png" width="820"><br><sub>A phone's window with its toolbar</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/files.png" width="680"><br><sub>File manager</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/settings.png" width="380"><br><sub>Settings</sub></td>
@@ -109,8 +113,29 @@ Some phones (Xiaomi, OPPO and others) block mouse and keyboard input from the PC
 | F11 | Fullscreen on and off |
 
 Toolbar, top to bottom: Power (right-click turns only the phone's screen off and keeps mirroring), Volume up, Volume down,
-Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Screenshot, Record, Mute, Fullscreen and
-Keep on top (right-click keeps every phone's window on top).
+Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Files, Screenshot, Record, Mute, Fullscreen
+and Keep on top (right-click keeps every phone's window on top).
+
+## File manager
+
+Open it with **Files** in the main window, **Browse files** when you right-click a phone, or the folder button on a phone's
+toolbar. It starts in the phone's internal storage (`/sdcard`); **Places** jumps to Download, Camera, Screenshots, Pictures,
+Movies, Music and Documents, and you can type any path.
+
+| Action | How |
+| --- | --- |
+| Open a folder | Double-click it, or type its path and press Enter |
+| Go up | **Up** or Backspace |
+| Open a file on the PC | Double-click it (it is copied to a temporary folder first) |
+| Download to the PC | Select files or folders, **Download**, pick a folder |
+| Upload to the phone | **Upload**, or drop files and folders from Explorer onto the list |
+| New folder | **New folder** |
+| Rename | **Rename** or F2; an existing name is never overwritten |
+| Delete | **Delete** or the Delete key, after a confirmation |
+| Refresh | **Refresh** or F5 |
+
+Everything goes over adb, so it works over USB and Wi-Fi. Android only lets adb into shared storage and a few system
+folders; private app data (`/data`) says "Permission denied".
 
 Screenshots go to `Pictures\Streamy` and recordings to `Videos\Streamy`, or the folders you choose in Settings. If Windows'
 Controlled Folder Access blocks those folders, Streamy saves to `%USERPROFILE%\Streamy` instead and says so.
@@ -155,6 +180,7 @@ streamy/
 ├── src/
 │   ├── Streamy.Core/             Logic with no Windows or UI dependencies
 │   │   ├── Adb/                  adb output parsers, phone details, QR pairing
+│   │   ├── Files/                Phone folder listing, paths and shell quoting
 │   │   ├── Geometry/             Fitting the frame in the window, window to phone coordinates
 │   │   ├── Input/                Android key codes, Windows key map, mouse/keyboard to control messages
 │   │   ├── Protocol/             scrcpy control and device messages, packet headers, config merging
@@ -167,7 +193,7 @@ streamy/
 │       ├── Services/             adb runner, bundled files, settings, file sending, updater, log
 │       ├── Session/              One mirroring session: tunnel, sockets, stream readers, control queue
 │       ├── ThirdParty/           adb, scrcpy-server, FFmpeg (downloaded, not committed)
-│       ├── UI/                   Device list, details, phone window, toolbar, settings, pairing
+│       ├── UI/                   Device list, details, phone window, toolbar, file manager, settings, pairing
 │       └── Video/                FFmpeg video decoder, frame triple buffer, Direct3D 11 renderer
 ├── tests/
 │   └── Streamy.Core.Tests/       xUnit tests
@@ -210,6 +236,7 @@ Developer switches:
 | `--probe SERIAL OUT [SECONDS]` | Stream without a window, write the device name, codecs, frame size, packet, frame and audio counts to `OUT`, and save the newest frame as a PNG beside it |
 | `--record SERIAL OUT.mp4 [SECONDS]` | Record without a window and report the file |
 | `--send SERIAL OUT FILE...` | Send files and APKs the way a drop on the window does, and report the result |
+| `--files SERIAL OUT` | Run every file manager operation in a throwaway folder on the phone and report each one |
 | `--render-icon DIR` | Write `app.ico` and a 512 px `icon.png` |
 
 ### Updating scrcpy
@@ -226,8 +253,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.1.1
+git push origin v1.1.1
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds

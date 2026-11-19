@@ -3,7 +3,7 @@ namespace Streamy.UI;
 /// <summary>A small text input dialog.</summary>
 internal static class Prompt
 {
-    public static string? Show(IWin32Window owner, string title, string message)
+    public static string? Show(IWin32Window owner, string title, string message, string initial = "")
     {
         using var form = new Form
         {
@@ -18,7 +18,7 @@ internal static class Prompt
         };
         var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, Dock = DockStyle.Fill };
         var label = new Label { Text = message, AutoSize = true, MaximumSize = new Size(420, 0) };
-        var box = new TextBox { Width = 320 };
+        var box = new TextBox { Width = 320, Text = initial };
         var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, AutoSize = true };
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
         var buttons = new FlowLayoutPanel { AutoSize = true };

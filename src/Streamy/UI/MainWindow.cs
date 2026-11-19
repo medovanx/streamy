@@ -26,6 +26,7 @@ internal sealed class MainWindow : Form
     private readonly Button _mirror = new() { Text = "Mirror", AutoSize = true, Enabled = false };
     private readonly Button _mirrorAll = new() { Text = "Mirror all", AutoSize = true, Enabled = false };
     private readonly Button _wifi = new() { Text = "Switch to Wi-Fi", AutoSize = true, Enabled = false };
+    private readonly Button _files = new() { Text = "Files", AutoSize = true, Enabled = false };
     private readonly ToolTip _tips = new();
     private readonly DetailsPanel _details = new();
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
@@ -70,15 +71,17 @@ internal sealed class MainWindow : Form
         _mirror.Click += async (_, _) => await ActivateSelectedAsync();
         _mirrorAll.Click += async (_, _) => await MirrorAllAsync();
         _wifi.Click += async (_, _) => await SwitchToWifiAsync();
+        _files.Click += (_, _) => OpenFiles();
 
         _tips.SetToolTip(_mirrorAll, "Open a window for every ready phone");
         _tips.SetToolTip(pairQr, "Android 11+: pair by scanning a QR code from Wireless debugging");
         _tips.SetToolTip(pairCode, "Android 11+: pair with the six-digit code from Wireless debugging");
         _tips.SetToolTip(connect, "Connect to a phone already paired or in TCP mode, by its IP address and port");
+        _tips.SetToolTip(_files, "Browse the selected phone's storage: download, upload, rename and delete files");
         _tips.SetToolTip(_wifi, "Move the selected USB phone to Wi-Fi: unplug it afterwards and keep mirroring");
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
-        bar.Controls.AddRange([_mirror, _mirrorAll, pairQr, pairCode, connect, _wifi, settings]);
+        bar.Controls.AddRange([_mirror, _mirrorAll, _files, pairQr, pairCode, connect, _wifi, settings]);
 
         Controls.Add(_list);
         Controls.Add(_details);
@@ -112,6 +115,7 @@ internal sealed class MainWindow : Form
         _mirror.Text = row is { Saved: not null, Device: null } ? "Connect" : "Mirror";
         _mirrorAll.Enabled = _devices.Count(d => d.IsReady) > 1;
         _wifi.Enabled = row is { Device: { IsReady: true, IsWireless: false } };
+        _files.Enabled = row is { Device.IsReady: true };
     }
 
     private async Task RefreshAsync()
@@ -229,6 +233,7 @@ internal sealed class MainWindow : Form
     {
         var menu = new ContextMenuStrip();
         var mirror = menu.Items.Add("Mirror", null, async (_, _) => await ActivateSelectedAsync());
+        var files = menu.Items.Add("Browse files", null, (_, _) => OpenFiles());
         var wifi = menu.Items.Add("Switch to Wi-Fi", null, async (_, _) => await SwitchToWifiAsync());
         var disconnect = menu.Items.Add("Disconnect", null, async (_, _) => await DisconnectAsync());
         var forget = menu.Items.Add("Forget", null, (_, _) => Forget());
@@ -238,6 +243,7 @@ internal sealed class MainWindow : Form
             if (row is null) { e.Cancel = true; return; }
             mirror.Text = row.Device is null ? "Connect" : "Mirror";
             mirror.Enabled = row.Device is null or { IsReady: true };
+            files.Visible = row.Device is { IsReady: true };
             wifi.Visible = row.Device is { IsReady: true, IsWireless: false };
             disconnect.Visible = row.Device is { IsWireless: true };
             forget.Visible = AppSettings.Current.SavedDevices.Any(s => s.Endpoint == row.Key);
@@ -261,6 +267,11 @@ internal sealed class MainWindow : Form
                 _status.Text = "Unlock the phone and tap Allow on the \"Allow USB debugging?\" prompt.";
                 break;
         }
+    }
+
+    private void OpenFiles()
+    {
+        if (Selected is { Device: { IsReady: true } d }) FileManager.Open(d.Serial, d.DisplayName);
     }
 
     private async Task MirrorAllAsync()
