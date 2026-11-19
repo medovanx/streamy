@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Streamy.Core/Streamy.Core.csproj" />
+    <Project Path="src/Streamy/Streamy.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Streamy.Core.Tests/Streamy.Core.Tests.csproj" />
+  </Folder>
+</Solution>

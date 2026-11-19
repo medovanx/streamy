@@ -1,0 +1,10 @@
+bin/
+obj/
+publish/
+TestResults/
+.vs/
+*.user
+desktop.ini
+
+# Downloaded by tools/fetch-deps.ps1, never committed
+src/Streamy/ThirdParty/

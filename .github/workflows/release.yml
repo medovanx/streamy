@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Check the tag matches the version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'.TrimStart('v')
+          $ver = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($tag -ne $ver) { throw "Tag v$tag does not match <Version>$ver</Version> in Directory.Build.props" }
+
+      - name: Fetch adb, scrcpy-server and FFmpeg
+        shell: pwsh
+        run: ./tools/fetch-deps.ps1
+
+      - name: Test
+        run: dotnet test Streamy.slnx -c Release
+
+      - name: Publish single-file exe
+        run: >
+          dotnet publish src/Streamy/Streamy.csproj -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish
+
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $ver = '${{ github.ref_name }}'.TrimStart('v')
+          $text = Get-Content CHANGELOG.md -Raw
+          $m = [regex]::Match($text, "(?s)## \[$([regex]::Escape($ver))\][^\n]*\n(.*?)(?=\n## \[|\n\[\d)")
+          $notes = if ($m.Success) { $m.Groups[1].Value.Trim() } else { "Release $ver" }
+          Set-Content notes.md $notes -Encoding utf8
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          # 0.x versions are previews.
+          $extra = @()
+          if ('${{ github.ref_name }}' -match '^v0\.') { $extra += '--prerelease' }
+          gh release create ${{ github.ref_name }} publish/Streamy.exe THIRD-PARTY-NOTICES.md --title "Streamy ${{ github.ref_name }}" --notes-file notes.md @extra

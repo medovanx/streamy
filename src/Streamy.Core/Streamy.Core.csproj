@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- scrcpy protocol, adb output parsing, server options, geometry and key mapping with no Windows or UI dependencies, so it can be unit tested anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RootNamespace>Streamy.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net11.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Streamy</AssemblyName>
+    <RootNamespace>Streamy</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Description>Mirror and control Android phones from Windows over USB or Wi-Fi</Description>
+    <!-- Controls are built in code, never in the WinForms designer. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Streamy.Core\Streamy.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    adb, scrcpy-server and the FFmpeg DLLs from tools/fetch-deps.ps1 are embedded and unpacked to
+    %LOCALAPPDATA%\Streamy\bin\<scrcpy version> on first run, so the release stays one exe.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="ThirdParty\*" Exclude="ThirdParty\.version" LogicalName="deps/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="CheckThirdParty" BeforeTargets="BeforeBuild" Condition="!Exists('ThirdParty\scrcpy-server')">
+    <Warning Text="src/Streamy/ThirdParty is empty: run 'pwsh tools/fetch-deps.ps1' so adb and scrcpy-server are embedded." />
+  </Target>
+
+</Project>

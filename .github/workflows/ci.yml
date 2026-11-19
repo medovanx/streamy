@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Fetch adb, scrcpy-server and FFmpeg
+        shell: pwsh
+        run: ./tools/fetch-deps.ps1
+
+      - name: Build
+        run: dotnet build Streamy.slnx -c Release
+
+      - name: Test
+        run: dotnet test Streamy.slnx -c Release --no-build
