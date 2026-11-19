@@ -3,6 +3,12 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-19
+
+### Added
+- Updates show their progress: a window with a progress bar, megabytes downloaded of the total, percent and speed, then the checksum check and the restart. **Cancel** stops the download and keeps the running version; a failed update says why.
+- Icons on every button (main window, file manager, Settings, dialogs), centred together with the text.
+
 ## [1.1.0] - 2026-11-19
 
 ### Added
@@ -77,6 +83,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.2.0]: https://github.com/medovanx/streamy/releases/tag/v1.2.0
 [1.1.0]: https://github.com/medovanx/streamy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/medovanx/streamy/releases/tag/v1.0.0
 [0.3.0]: https://github.com/medovanx/streamy/releases/tag/v0.3.0

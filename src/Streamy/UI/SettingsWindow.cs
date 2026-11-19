@@ -54,12 +54,15 @@ internal sealed class SettingsWindow : Form
         Row("Recordings", FolderPicker(_recordings, SaveFolders.Default(Environment.SpecialFolder.MyVideos)));
         Section("Updates");
         var check = new Button { Text = "Check now", AutoSize = true };
+        Glyph.Apply(check, Glyph.Refresh);
         check.Click += async (_, _) => await UpdateCheck.RunAsync(this, quiet: false);
         Row("", _updates);
         Row($"Version {Updater.CurrentText}", check);
 
         var save = new Button { Text = "Save", DialogResult = DialogResult.OK, AutoSize = true };
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
+        Glyph.Apply(save, Glyph.Save);
+        Glyph.Apply(cancel, Glyph.Cancel);
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Padding = new Padding(10) };
         buttons.Controls.AddRange([cancel, save]);
         AcceptButton = save;
@@ -126,6 +129,7 @@ internal sealed class SettingsWindow : Form
     {
         box.PlaceholderText = SaveFolders.Short(placeholder); // "Pictures\Streamy" when left empty
         var browse = new Button { Text = "Browse", AutoSize = true };
+        Glyph.Apply(browse, Glyph.FolderOpen);
         browse.Click += (_, _) =>
         {
             using var dlg = new FolderBrowserDialog { SelectedPath = box.Text.Length > 0 ? box.Text : placeholder };
@@ -171,7 +175,10 @@ internal static class UpdateCheck
         var answer = MessageBox.Show(owner, $"Streamy {rel.Version.ToString(3)} is available (you have {Updater.CurrentText}). Update now?\n\nStreamy restarts; open phone windows close.",
             "Streamy update", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
         if (answer != DialogResult.Yes) return;
-        if (await Updater.InstallAsync(rel)) Application.Exit();
-        else MessageBox.Show(owner, "The update could not be installed. You can download it from GitHub.", "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        using var progress = new UpdateWindow(rel);
+        progress.ShowDialog(owner);
+        if (progress.Installed) Application.Exit();
+        else if (progress.Error is { } error)
+            MessageBox.Show(owner, $"The update could not be installed: {error}\n\nYou can download it from GitHub.", "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 }

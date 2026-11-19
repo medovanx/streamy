@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: 1.1.0. Last updated 2026-11-19.
+Status: 1.2.0. Last updated 2026-11-19.
 
 ## 1. Purpose
 
@@ -74,7 +74,7 @@ All are done in 1.0.0 unless marked otherwise.
 
 ### 3.7 App
 
-- FR-61 Auto-update from GitHub Releases with SHA-256 checking.
+- FR-61 Auto-update from GitHub Releases with SHA-256 checking, a progress window (size, percent, speed) and Cancel.
 - FR-62 Settings in `%APPDATA%\Streamy\settings.json`; errors logged to `%LOCALAPPDATA%\Streamy\streamy.log`.
 - FR-63 App icon at every Windows size.
 
@@ -94,6 +94,7 @@ All are done in 1.0.0 unless marked otherwise.
 | 0.3.0 | Mouse and keyboard, toolbar, clipboard |
 | 1.0.0 | Sound, recording, screenshots, files and APKs, QR pairing, Wi-Fi switch, saved phones, phone details, settings, updater, icon |
 | 1.1.0 | File manager |
+| 1.2.0 | Update progress window, icons on buttons |
 
 ## 6. Later
 

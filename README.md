@@ -41,7 +41,7 @@ side by side, each in its own window.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
-- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases.
+- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases, with a progress bar.
 
 ## Screenshots
 
@@ -171,7 +171,7 @@ PC, over your own USB cable or local network.
 - **Recording.** The phone's packets are remuxed into MP4 as they arrive, without re-encoding. Recording asks the phone for a fresh key frame so the file starts at once, and carries new parameter sets after a rotation.
 - **Control.** Mouse and keyboard events become scrcpy control messages in a platform-free mapper in `Streamy.Core/Input`. They go through a queue to one writer, so they reach the phone in order, and are serialized byte for byte like scrcpy's own client; the unit tests use scrcpy's test vectors.
 - **Phone details** come from one `adb shell` call (`getprop`, `/proc/meminfo`, `df`, SurfaceFlinger's GLES line, `dumpsys battery`, `wm`, CPU frequencies), parsed in `Streamy.Core/Adb/DeviceInfo.cs`.
-- **Updates** come from GitHub Releases tagged `vMAJOR.MINOR.PATCH`. The new exe is downloaded beside the running one and checked against the SHA-256 GitHub publishes, then swapped in and restarted.
+- **Updates** come from GitHub Releases tagged `vMAJOR.MINOR.PATCH`. The new exe is downloaded beside the running one with a progress window (size, percent, speed, Cancel), checked against the SHA-256 GitHub publishes, then swapped in and restarted.
 
 ## Project structure
 
@@ -253,8 +253,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.1.1
-git push origin v1.1.1
+git tag v1.2.1
+git push origin v1.2.1
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds

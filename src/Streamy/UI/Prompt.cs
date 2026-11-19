@@ -21,6 +21,8 @@ internal static class Prompt
         var box = new TextBox { Width = 320, Text = initial };
         var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, AutoSize = true };
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
+        Glyph.Apply(ok, Glyph.Check);
+        Glyph.Apply(cancel, Glyph.Cancel);
         var buttons = new FlowLayoutPanel { AutoSize = true };
         buttons.Controls.AddRange([ok, cancel]);
         layout.Controls.AddRange([label, box, buttons]);

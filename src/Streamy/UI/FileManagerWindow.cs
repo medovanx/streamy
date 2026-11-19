@@ -61,14 +61,16 @@ internal sealed class FileManagerWindow : Form
         _list.ContextMenuStrip = BuildMenu();
 
         var nav = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 6, 6, 0), WrapContents = false };
-        _up = Action("Up", async () => await GoUpAsync(), nav);
-        Action("Refresh", async () => await LoadAsync(_folder), nav);
+        _up = Action("Up", async () => await GoUpAsync(), nav, Glyph.Up);
+        Action("Refresh", async () => await LoadAsync(_folder), nav, Glyph.Refresh);
         nav.Controls.Add(_path);
-        Action("Go", async () => await NavigateAsync(_path.Text), nav);
+        Action("Go", async () => await NavigateAsync(_path.Text), nav, Glyph.Forward);
         var places = new Button { Text = "Places", AutoSize = true };
         var placesMenu = new ContextMenuStrip();
         foreach (var (label, path) in PhoneFiles.Places) placesMenu.Items.Add(label, null, async (_, _) => await NavigateAsync(path));
         places.Click += (_, _) => placesMenu.Show(places, new Point(0, places.Height));
+        Glyph.Apply(places, Glyph.Places);
+        places.AutoSize = true;
         nav.Controls.Add(places);
         _actions.Add(places);
         _path.KeyDown += async (_, e) =>
@@ -79,11 +81,11 @@ internal sealed class FileManagerWindow : Form
         };
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 6), WrapContents = false };
-        Action("Upload", async () => await PickAndUploadAsync(), bar);
-        _download = Action("Download", async () => await DownloadSelectedAsync(), bar);
-        Action("New folder", async () => await NewFolderAsync(), bar);
-        _rename = Action("Rename", BeginRename, bar);
-        _delete = Action("Delete", async () => await DeleteSelectedAsync(), bar);
+        Action("Upload", async () => await PickAndUploadAsync(), bar, Glyph.Upload);
+        _download = Action("Download", async () => await DownloadSelectedAsync(), bar, Glyph.Download);
+        Action("New folder", async () => await NewFolderAsync(), bar, Glyph.NewFolder);
+        _rename = Action("Rename", BeginRename, bar, Glyph.Rename);
+        _delete = Action("Delete", async () => await DeleteSelectedAsync(), bar, Glyph.Delete);
 
         Controls.Add(_list);
         Controls.Add(bar);
@@ -350,16 +352,17 @@ internal sealed class FileManagerWindow : Form
         return s;
     }
 
-    private Button Action(string text, Action onClick, Control parent)
+    private Button Action(string text, Action onClick, Control parent, string glyph)
     {
         var b = new Button { Text = text, AutoSize = true };
+        Glyph.Apply(b, glyph);
         b.Click += (_, _) => onClick();
         parent.Controls.Add(b);
         _actions.Add(b);
         return b;
     }
 
-    private Button Action(string text, Func<Task> onClick, Control parent) => Action(text, () => { _ = onClick(); }, parent);
+    private Button Action(string text, Func<Task> onClick, Control parent, string glyph) => Action(text, () => { _ = onClick(); }, parent, glyph);
 
     private ContextMenuStrip BuildMenu()
     {

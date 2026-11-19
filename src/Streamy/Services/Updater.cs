@@ -53,35 +53,71 @@ public static class Updater
         return null;
     }
 
-    /// <summary>Downloads and swaps the exe, then starts the new version. Returns false if it couldn't.</summary>
-    public static async Task<bool> InstallAsync(Release rel, IProgress<int>? percent = null)
+    public enum Phase { Downloading, Verifying, Installing }
+
+    /// <summary>Where an update is: the phase, and bytes downloaded of the total (0 when GitHub does not say).</summary>
+    public readonly record struct Progress(Phase Phase, long Done, long Total);
+
+    /// <summary>
+    /// Downloads the release's exe to <paramref name="target"/> and checks its SHA-256. Reports progress at most
+    /// ten times a second. Throws on failure or cancellation and leaves no partial file behind.
+    /// </summary>
+    public static async Task DownloadAsync(Release rel, string target, IProgress<Progress>? progress = null, CancellationToken ct = default)
+    {
+        try
+        {
+            using (var resp = await Http.GetAsync(rel.AssetUrl, HttpCompletionOption.ResponseHeadersRead, ct))
+            {
+                resp.EnsureSuccessStatusCode();
+                long total = resp.Content.Headers.ContentLength ?? 0, done = 0;
+                await using var fs = File.Create(target);
+                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                var buf = new byte[81920];
+                var last = DateTime.MinValue;
+                int n;
+                progress?.Report(new Progress(Phase.Downloading, 0, total));
+                while ((n = await src.ReadAsync(buf, ct)) > 0)
+                {
+                    await fs.WriteAsync(buf.AsMemory(0, n), ct);
+                    done += n;
+                    if ((DateTime.UtcNow - last).TotalMilliseconds >= 100)
+                    {
+                        last = DateTime.UtcNow;
+                        progress?.Report(new Progress(Phase.Downloading, done, total));
+                    }
+                }
+                progress?.Report(new Progress(Phase.Downloading, done, total));
+            }
+
+            if (rel.Sha256 is not null)
+            {
+                progress?.Report(new Progress(Phase.Verifying, 0, 0));
+                await using var fs = File.OpenRead(target);
+                string actual = Convert.ToHexString(await SHA256.HashDataAsync(fs, ct)).ToLowerInvariant();
+                if (actual != rel.Sha256.ToLowerInvariant())
+                    throw new InvalidDataException("The download did not match the checksum GitHub published.");
+            }
+        }
+        catch
+        {
+            try { if (File.Exists(target)) File.Delete(target); } catch (IOException) { }
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Downloads and verifies the new exe, swaps it in for the running one and starts it. The caller then exits.
+    /// Throws on failure or cancellation; the running exe is untouched in that case.
+    /// </summary>
+    public static async Task InstallAsync(Release rel, IProgress<Progress>? progress = null, CancellationToken ct = default)
     {
         string exe = Environment.ProcessPath!;
         string fresh = exe + ".new", old = exe + ".old";
         try
         {
-            using (var resp = await Http.GetAsync(rel.AssetUrl, HttpCompletionOption.ResponseHeadersRead))
-            {
-                resp.EnsureSuccessStatusCode();
-                long total = resp.Content.Headers.ContentLength ?? 0, done = 0;
-                await using var fs = File.Create(fresh);
-                await using var src = await resp.Content.ReadAsStreamAsync();
-                var buf = new byte[81920];
-                int n;
-                while ((n = await src.ReadAsync(buf)) > 0)
-                {
-                    await fs.WriteAsync(buf.AsMemory(0, n));
-                    done += n;
-                    if (total > 0) percent?.Report((int)(done * 100 / total));
-                }
-            }
-
-            if (rel.Sha256 is not null)
-            {
-                await using var fs = File.OpenRead(fresh);
-                string actual = Convert.ToHexString(await SHA256.HashDataAsync(fs)).ToLowerInvariant();
-                if (actual != rel.Sha256.ToLowerInvariant()) { File.Delete(fresh); return false; }
-            }
+            await DownloadAsync(rel, fresh, progress, ct);
+            ct.ThrowIfCancellationRequested();
+            progress?.Report(new Progress(Phase.Installing, 0, 0));
 
             if (File.Exists(old)) File.Delete(old);
             File.Move(exe, old);
@@ -89,13 +125,12 @@ public static class Updater
             catch { File.Move(old, exe); throw; }
 
             Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false });
-            return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Log.Error(ex, "update");
             try { if (File.Exists(fresh)) File.Delete(fresh); } catch (IOException) { }
-            return false;
+            throw;
         }
     }
 

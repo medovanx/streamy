@@ -81,6 +81,14 @@ internal sealed class MainWindow : Form
         _tips.SetToolTip(_wifi, "Move the selected USB phone to Wi-Fi: unplug it afterwards and keep mirroring");
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
+        Glyph.Apply(_mirror, Glyph.Mirror);
+        Glyph.Apply(_mirrorAll, Glyph.MirrorAll);
+        Glyph.Apply(_files, Glyph.Folder);
+        Glyph.Apply(pairQr, Glyph.QrCode);
+        Glyph.Apply(pairCode, Glyph.Key);
+        Glyph.Apply(connect, Glyph.Link);
+        Glyph.Apply(_wifi, Glyph.Wifi);
+        Glyph.Apply(settings, Glyph.Settings);
         bar.Controls.AddRange([_mirror, _mirrorAll, _files, pairQr, pairCode, connect, _wifi, settings]);
 
         Controls.Add(_list);
