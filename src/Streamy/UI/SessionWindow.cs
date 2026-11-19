@@ -298,6 +298,13 @@ internal sealed class SessionWindow : Form
             e.Handled = e.SuppressKeyPress = true;
             return;
         }
+        // Alt+F4 closes the window, as everywhere in Windows; it is not sent to the phone.
+        if (e.KeyCode == Keys.F4 && mods == KeyModifiers.Alt)
+        {
+            e.Handled = e.SuppressKeyPress = true;
+            Close();
+            return;
+        }
         // Ctrl+V or Shift+Insert: put the PC's clipboard on the phone and paste it.
         if ((e.KeyCode == Keys.V && mods == KeyModifiers.Ctrl) || (e.KeyCode == Keys.Insert && mods == KeyModifiers.Shift))
         {
@@ -323,6 +330,14 @@ internal sealed class SessionWindow : Form
         string text = char.IsLowSurrogate(c) && _highSurrogate != 0 ? new string([_highSurrogate, c]) : c.ToString();
         _highSurrogate = '\0';
         if (text.Length == 1 && char.IsControl(text[0])) return; // Enter, Tab and Backspace went as key events
+        if (TextInjection.NeedsPaste(text))
+        {
+            // The phone can only type characters its built-in key map knows (ASCII); scrcpy drops the rest.
+            // Arabic, accents and emoji go through the phone's clipboard and are pasted instead.
+            _lastPhoneClipboard = text;
+            _session.Send(ControlMessage.SetClipboard(++_clipboardSequence, text, paste: true));
+            return;
+        }
         _session.Send(ControlMessage.InjectText(text));
     }
 

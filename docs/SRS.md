@@ -52,7 +52,7 @@ All are done in 1.0.0 unless marked otherwise.
 
 - FR-20 Mouse as finger: click, drag, long press; wheel and tilt wheel scroll.
 - FR-21 Right click = Back, middle click = Home, side buttons = Recents and notifications; toolbar for Power, Volume, Rotate, Back, Home, Recents, Notifications.
-- FR-22 Keyboard: text as text (any PC layout), keys without text and Ctrl/Alt shortcuts as key events.
+- FR-22 Keyboard: text as text (any PC layout), keys without text and Ctrl/Alt shortcuts as key events. Characters outside ASCII, which scrcpy-server cannot type, are pasted through the phone's clipboard. Alt+F4 and F11 stay with Windows.
 - FR-23 Pinch to zoom with Ctrl + drag.
 
 ### 3.4 Audio and recording

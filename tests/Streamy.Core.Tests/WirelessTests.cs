@@ -44,7 +44,7 @@ public class WirelessTests
         var p = new WirelessPairing("studio-abc", "pw");
         var services = new[]
         {
-            new AdbMdnsService("adb-RKGL2002JQN-x", "_adb-tls-connect._tcp", "192.168.1.28:41235"),
+            new AdbMdnsService("adb-R58N12ABCDE-x", "_adb-tls-connect._tcp", "192.168.1.28:41235"),
             new AdbMdnsService("studio-other", "_adb-tls-pairing._tcp", "192.168.1.30:37000"),
             new AdbMdnsService("studio-abc", "_adb-tls-pairing._tcp", "192.168.1.28:37011"),
         };

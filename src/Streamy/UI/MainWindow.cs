@@ -31,6 +31,7 @@ internal sealed class MainWindow : Form
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
     private readonly Dictionary<string, SessionWindow> _open = [];
     private readonly HashSet<string> _reconnecting = [];
+    private readonly HashSet<string> _reconnectLogged = [];
     private IReadOnlyList<AdbDevice> _devices = [];
     private bool _refreshing;
     private bool _rebuilding;
@@ -214,7 +215,11 @@ internal sealed class MainWindow : Form
             _ = Task.Run(async () =>
             {
                 try { await AdbClient.Default.ConnectAsync(s.Endpoint); }
-                catch (Exception ex) { Log.Info($"Reconnect {s.Endpoint}: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    // An away phone fails every 10 s; log it once, not every time.
+                    if (_reconnectLogged.Add(s.Endpoint)) Log.Info($"Reconnect {s.Endpoint}: {ex.Message}");
+                }
                 finally { BeginInvoke(() => _reconnecting.Remove(s.Endpoint)); }
             });
         }

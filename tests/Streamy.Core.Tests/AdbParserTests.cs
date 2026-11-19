@@ -10,7 +10,7 @@ public class AdbParserTests
         const string output = """
             * daemon started successfully
             List of devices attached
-            RKGL2002JQN            device product:a36xqnaxx model:SM_A366B device:a36xq transport_id:3
+            R58N12ABCDE            device product:a36xqnaxx model:SM_A366B device:a36xq transport_id:3
             192.168.1.20:41235     device product:panther model:Pixel_7 device:panther transport_id:5
             adb-R58M12345-AbCdEf._adb-tls-connect._tcp device product:x model:Galaxy_S21 device:o1s transport_id:6
             emulator-5554          unauthorized transport_id:7
@@ -19,7 +19,7 @@ public class AdbParserTests
         var devices = AdbParsers.ParseDevices(output);
 
         Assert.Equal(4, devices.Count);
-        Assert.Equal("RKGL2002JQN", devices[0].Serial);
+        Assert.Equal("R58N12ABCDE", devices[0].Serial);
         Assert.Equal("SM A366B", devices[0].DisplayName);
         Assert.True(devices[0].IsReady);
         Assert.False(devices[0].IsWireless);
@@ -37,8 +37,8 @@ public class AdbParserTests
     {
         const string output = """
             List of discovered mdns services
-            adb-RKGL2002JQN-Xy12ab	_adb-tls-connect._tcp	192.168.1.20:41235
-            adb-RKGL2002JQN-Xy12ab	_adb-tls-pairing._tcp	192.168.1.20:37011
+            adb-R58N12ABCDE-Xy12ab	_adb-tls-connect._tcp	192.168.1.20:41235
+            adb-R58N12ABCDE-Xy12ab	_adb-tls-pairing._tcp	192.168.1.20:37011
             """;
         var services = AdbParsers.ParseMdnsServices(output);
         Assert.Equal(2, services.Count);
@@ -48,7 +48,7 @@ public class AdbParserTests
     }
 
     [Theory]
-    [InlineData("Successfully paired to 192.168.1.20:37011 [guid=adb-RKGL2002JQN-Xy12ab]", true)]
+    [InlineData("Successfully paired to 192.168.1.20:37011 [guid=adb-R58N12ABCDE-Xy12ab]", true)]
     [InlineData("Failed: Unable to start pairing client.", false)]
     public void Pair(string output, bool ok) => Assert.Equal(ok, AdbParsers.IsPairSuccess(output));
 

@@ -115,3 +115,14 @@ public class InputMapperTests
         Assert.Null(m.KeyUp(0x25, KeyModifiers.None));
     }
 }
+
+public class TextInjectionTests
+{
+    [Theory]
+    [InlineData("hello, world!", false)]
+    [InlineData("~", false)]
+    [InlineData("\u0645\u0631\u062D\u0628\u0627", true)] // Arabic
+    [InlineData("caf\u00E9", true)]
+    [InlineData("\uD83D\uDE00", true)] // emoji
+    public void NonAsciiGoesThroughTheClipboard(string text, bool paste) => Assert.Equal(paste, TextInjection.NeedsPaste(text));
+}

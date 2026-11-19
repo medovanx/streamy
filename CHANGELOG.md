@@ -21,6 +21,8 @@ Everything planned for 1.0: sound, recording, files, Wi-Fi pairing, phone detail
 - Toolbar: Fullscreen (also F11) and Keep on top. The toolbar shrinks its buttons to fit when the window is short.
 - Updates from GitHub Releases, checked at start, verified with SHA-256 and installed in place.
 - App icon.
+- Typing Arabic, accented letters or emoji works: characters the phone cannot type are sent through its clipboard and pasted.
+- Alt+F4 closes a phone's window instead of going to the phone.
 - Errors are logged to `%LOCALAPPDATA%\Streamy\streamy.log`.
 
 ### Changed

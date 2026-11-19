@@ -19,7 +19,7 @@ side by side, each in its own window.
 
 [**Download**](https://github.com/medovanx/streamy/releases/latest) | [Features](#features) | [Screenshots](#screenshots) | [Connect a phone](#connect-a-phone) | [Using the phone](#using-the-phone-from-the-pc) | [Privacy](#privacy) | [Build](#build-from-source)
 
-<img src="docs/screenshots/session.png" alt="A phone mirrored in Streamy">
+<img src="docs/screenshots/main.png" alt="Streamy's device list with the selected phone's details">
 
 </div>
 
@@ -28,7 +28,7 @@ side by side, each in its own window.
 ## Features
 
 - **Live screen.** The phone's screen in a window, decoded with FFmpeg and drawn with Direct3D 11, at the phone's own frame rate (about 100 fps from a 120 Hz phone in testing). The window takes the phone's shape, keeps its proportions when you resize it, turns when the phone turns, and goes fullscreen with F11.
-- **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses, and shortcuts like Ctrl+A or Ctrl+C work.
+- **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses (Arabic, accents and emoji go through the phone's clipboard and are pasted), and shortcuts like Ctrl+A or Ctrl+C work.
 - **Sound.** The phone's audio plays on the PC (Android 11+), kept in sync with the picture, with mute and volume.
 - **Record and capture.** Record the screen and sound to MP4 without re-encoding, or save a full-resolution screenshot that is also copied to the clipboard.
 - **Files and apps.** Drop APKs on a phone's window to install or update them; drop any other file to put it in the phone's Download folder, where Gallery and Files see it at once.
@@ -38,13 +38,13 @@ side by side, each in its own window.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
-- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases.
+- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases (once the repository is public; see [Privacy](#privacy)).
 
 ## Screenshots
 
 <table>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/main.png" width="820"><br><sub>Phones, their details, pairing and Wi-Fi</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/session.png" width="820"><br><sub>A phone's window with its toolbar</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/settings.png" width="380"><br><sub>Settings</sub></td>
@@ -98,7 +98,7 @@ Some phones (Xiaomi, OPPO and others) block mouse and keyboard input from the PC
 | Right click | Back (wakes the screen if it is off) |
 | Middle click | Home |
 | Mouse side buttons | Recent apps, notifications |
-| Typing | Text, in whatever layout the PC uses |
+| Typing | Text, in whatever layout the PC uses. Characters outside ASCII are pasted through the phone's clipboard, which they replace |
 | Enter, Backspace, arrows, Esc, F1-F10, F12, Ctrl or Alt + key | The same keys |
 | Ctrl+V, Shift+Insert | Paste the PC's clipboard |
 | Copy on the phone | Lands in the PC's clipboard |
@@ -134,6 +134,9 @@ PC, over your own USB cable or local network.
 | Service | When | What it sends |
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks (turn them off in Settings) | Nothing besides the request |
+
+While this repository is private, GitHub does not show its releases to running copies, so the update check finds nothing
+and stays silent. Download new versions from the Releases page until the repository is public.
 
 ## How it works
 
