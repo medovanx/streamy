@@ -3,7 +3,7 @@ namespace Streamy.Services;
 /// <summary>
 /// Where screenshots and recordings go. The user's choice from Settings if set, else Pictures\Streamy and
 /// Videos\Streamy. When Windows refuses those (Controlled Folder Access blocks unknown apps from writing to
-/// Pictures, Videos and Documents), Streamy falls back to %USERPROFILE%\Streamy\..., which is never protected.
+/// Pictures, Videos and Documents), Streamy falls back to a folder under %USERPROFILE%\Streamy, which is never protected.
 /// </summary>
 public static class SaveFolders
 {

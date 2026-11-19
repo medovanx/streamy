@@ -66,6 +66,25 @@ public sealed class AdbClient(string adbPath)
         if (!r.Ok) throw new IOException("adb push failed: " + r.All);
     }
 
+    /// <summary>Installs (or updates, keeping data) an APK. Returns adb's output.</summary>
+    public async Task<AdbResult> InstallAsync(string serial, string apk, CancellationToken ct = default) =>
+        await RunAsync(["install", "-r", "-d", apk], serial, TimeSpan.FromMinutes(10), ct);
+
+    public async Task<AdbResult> ShellAsync(string serial, IEnumerable<string> command, CancellationToken ct = default) =>
+        await RunAsync(["shell", .. command], serial, ct: ct);
+
+    /// <summary>System, chip, memory, storage, battery and screen details, read in one shell call.</summary>
+    public async Task<DeviceInfo> DeviceInfoAsync(string serial, CancellationToken ct = default) =>
+        DeviceInfo.Parse((await RunAsync(["shell", DeviceInfo.Script], serial, TimeSpan.FromSeconds(15), ct)).Output);
+
+    /// <summary>The phone's Wi-Fi address, or null when Wi-Fi is off.</summary>
+    public async Task<string?> WifiAddressAsync(string serial, CancellationToken ct = default) =>
+        AdbParsers.ParseWlanAddress((await ShellAsync(serial, ["ip", "-f", "inet", "addr", "show", "wlan0"], ct)).Output);
+
+    /// <summary>Restarts adbd on the phone listening on TCP (works on every Android version, until the phone reboots).</summary>
+    public async Task<AdbResult> TcpIpAsync(string serial, int port, CancellationToken ct = default) =>
+        await RunAsync(["tcpip", port.ToString(CultureInfo.InvariantCulture)], serial, ct: ct);
+
     /// <summary>adb forward tcp:0 → the device socket; adb picks a free local port and prints it.</summary>
     public async Task<int> ForwardAsync(string serial, string deviceSocket, CancellationToken ct = default)
     {

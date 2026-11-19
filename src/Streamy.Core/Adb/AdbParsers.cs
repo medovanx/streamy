@@ -100,6 +100,30 @@ public static partial class AdbParsers
         return true;
     }
 
+    /// <summary>The phone's Wi-Fi IPv4 address from "ip -f inet addr show wlan0", or null.</summary>
+    public static string? ParseWlanAddress(string output)
+    {
+        var m = InetRegex().Match(output);
+        return m.Success ? m.Groups[1].Value : null;
+    }
+
+    /// <summary>"adb install" printed Success.</summary>
+    public static bool IsInstallSuccess(string output) =>
+        output.Split('\n').Any(l => l.Trim().Equals("Success", StringComparison.Ordinal));
+
+    /// <summary>The reason "adb install" gives, e.g. INSTALL_FAILED_VERSION_DOWNGRADE.</summary>
+    public static string? InstallFailure(string output)
+    {
+        var m = FailureRegex().Match(output);
+        return m.Success ? m.Groups[1].Value : null;
+    }
+
+    [GeneratedRegex(@"inet (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/")]
+    private static partial Regex InetRegex();
+
+    [GeneratedRegex(@"Failure \[([A-Z_]+)")]
+    private static partial Regex FailureRegex();
+
     [GeneratedRegex(@"\bconnected to\b", RegexOptions.IgnoreCase)]
     private static partial Regex ConnectedRegex();
 }

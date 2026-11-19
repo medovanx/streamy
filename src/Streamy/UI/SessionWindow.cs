@@ -31,9 +31,15 @@ internal sealed class SessionWindow : Form
     {
         _session = session;
         Text = $"{session.DeviceName} - Streamy";
+        Icon = AppIcon.Load();
         BackColor = Color.Black;
         StartPosition = FormStartPosition.Manual;
         KeyPreview = false;
+        TopMost = AppSettings.Current.AlwaysOnTop;
+        AllowDrop = true;
+        _view.AllowDrop = true;
+        _view.DragEnter += OnDragEnter;
+        _view.DragDrop += OnDragDrop;
         Controls.Add(_view);
         Controls.Add(_toolbar);
         BuildToolbar();
@@ -66,6 +72,93 @@ internal sealed class SessionWindow : Form
         _renderer.Signal();
         _timer.Start();
         StartAudio();
+        if (AppSettings.Current.TurnScreenOff) _session.Send(ControlMessage.SetDisplayPower(false));
+    }
+
+    // ---- Files --------------------------------------------------------------------------------------------
+
+    private const string PushFolder = "/sdcard/Download/";
+    private bool _sending;
+
+    private void OnDragEnter(object? sender, DragEventArgs e) =>
+        e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true && !_sending ? DragDropEffects.Copy : DragDropEffects.None;
+
+    /// <summary>APKs are installed (or updated); anything else is copied to the phone's Download folder.</summary>
+    private async void OnDragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(DataFormats.FileDrop) is not string[] paths || _sending) return;
+        var files = paths.Where(File.Exists).ToList();
+        if (files.Count == 0) return;
+        _sending = true;
+        int ok = 0;
+        var failures = new List<string>();
+        try
+        {
+            for (int i = 0; i < files.Count; i++)
+            {
+                var file = files[i];
+                var name = Path.GetFileName(file);
+                string counter = files.Count > 1 ? $" ({i + 1}/{files.Count})" : "";
+                try
+                {
+                    if (file.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Flash($"Installing {name}{counter}", seconds: 600);
+                        var r = await AdbClient.Default.InstallAsync(_session.Serial, file);
+                        if (Core.Adb.AdbParsers.IsInstallSuccess(r.All)) ok++;
+                        else failures.Add($"{name}: {Core.Adb.AdbParsers.InstallFailure(r.All) ?? r.All.Trim()}");
+                    }
+                    else
+                    {
+                        Flash($"Sending {name}{counter}", seconds: 600);
+                        await AdbClient.Default.PushAsync(_session.Serial, file, PushFolder + name);
+                        _session.Send(ControlMessage.ScanFile(PushFolder + name)); // show it in Gallery / Files at once
+                        ok++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "send " + name);
+                    failures.Add($"{name}: {ex.Message}");
+                }
+            }
+        }
+        finally
+        {
+            _sending = false;
+        }
+        bool apks = files.All(f => f.EndsWith(".apk", StringComparison.OrdinalIgnoreCase));
+        Flash(failures.Count == 0
+            ? (apks ? $"Installed {Plural(ok, "app")}" : $"Sent {Plural(ok, "file")} to Download")
+            : $"{ok} done, {failures.Count} failed");
+        if (failures.Count > 0)
+            MessageBox.Show(this, string.Join("\n", failures), "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+
+    private static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n} {word}s";
+
+    // ---- Fullscreen ---------------------------------------------------------------------------------------
+
+    private FormWindowState _windowedState;
+    private Rectangle _windowedBounds;
+
+    /// <summary>F11: the phone's screen fills the monitor, without the title bar and toolbar.</summary>
+    private void ToggleFullscreen()
+    {
+        if (FormBorderStyle == FormBorderStyle.None)
+        {
+            FormBorderStyle = FormBorderStyle.Sizable;
+            _toolbar.Visible = true;
+            WindowState = _windowedState;
+            if (_windowedState == FormWindowState.Normal) Bounds = _windowedBounds;
+            return;
+        }
+        _windowedState = WindowState;
+        _windowedBounds = Bounds;
+        _toolbar.Visible = false;
+        FormBorderStyle = FormBorderStyle.None;
+        WindowState = FormWindowState.Normal;
+        Bounds = Screen.FromControl(this).Bounds;
     }
 
     // ---- Audio, screenshots, recording --------------------------------------------------------------------
@@ -144,10 +237,10 @@ internal sealed class SessionWindow : Form
     private DateTime _flashUntil;
 
     /// <summary>Shows a short message in the title bar for a few seconds.</summary>
-    private void Flash(string message)
+    private void Flash(string message, int seconds = 4)
     {
         _flash = message;
-        _flashUntil = DateTime.Now.AddSeconds(4);
+        _flashUntil = DateTime.Now.AddSeconds(seconds);
         UpdateTitle();
     }
 
@@ -169,6 +262,11 @@ internal sealed class SessionWindow : Form
         _toolbar.Add(Glyph.Camera, "Screenshot (saved and copied to the clipboard)", _tips, TakeScreenshot);
         _recordButton = _toolbar.Add(Glyph.Record, "Record to MP4 (click again to stop)", _tips, ToggleRecording);
         _muteButton = _toolbar.Add(Glyph.Speaker, "Mute the phone's sound on the PC", _tips, ToggleMute);
+        _toolbar.AddSeparator();
+        _toolbar.Add(Glyph.Fullscreen, "Fullscreen (F11 to leave)", _tips, ToggleFullscreen);
+        _toolbar.Add(Glyph.Pin, "Keep this window on top (right-click: always, for every phone)", _tips,
+            () => TopMost = !TopMost,
+            () => { AppSettings.Current.AlwaysOnTop = TopMost = !AppSettings.Current.AlwaysOnTop; AppSettings.Current.Save(); });
     }
 
     private void PressKey(AndroidKeycode key)
@@ -225,6 +323,13 @@ internal sealed class SessionWindow : Form
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         var mods = Modifiers();
+        // F11 is Streamy's own: fullscreen on and off. Phones have no use for it.
+        if (e.KeyCode == Keys.F11 && mods == KeyModifiers.None)
+        {
+            ToggleFullscreen();
+            e.Handled = e.SuppressKeyPress = true;
+            return;
+        }
         // Ctrl+V or Shift+Insert: put the PC's clipboard on the phone and paste it.
         if ((e.KeyCode == Keys.V && mods == KeyModifiers.Ctrl) || (e.KeyCode == Keys.Insert && mods == KeyModifiers.Shift))
         {
@@ -249,7 +354,7 @@ internal sealed class SessionWindow : Form
         if (char.IsHighSurrogate(c)) { _highSurrogate = c; return; }
         string text = char.IsLowSurrogate(c) && _highSurrogate != 0 ? new string([_highSurrogate, c]) : c.ToString();
         _highSurrogate = '\0';
-        if (text.Length == 1 && char.IsControl(text[0])) return; // Enter, Tab, Backspace... went as key events
+        if (text.Length == 1 && char.IsControl(text[0])) return; // Enter, Tab and Backspace went as key events
         _session.Send(ControlMessage.InjectText(text));
     }
 
@@ -323,6 +428,7 @@ internal sealed class SessionWindow : Form
     private void FitTo(Size frame, bool center)
     {
         if (frame.Width <= 0 || frame.Height <= 0) return;
+        if (FormBorderStyle == FormBorderStyle.None) { _frameSize = frame; UpdateMapper(); return; } // fullscreen: the picture letterboxes itself
         if (frame == _frameSize) { UpdateMapper(); return; }
         var area = Screen.FromControl(this).WorkingArea;
         var chrome = Size - ClientSize + new Size(ToolBar.BarWidth, 0);

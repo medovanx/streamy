@@ -12,6 +12,7 @@ namespace Streamy.DevTools;
 /// <list type="bullet">
 /// <item><c>--probe SERIAL OUT [SECONDS]</c>: stream headless, write counts and a PNG of the newest frame.</item>
 /// <item><c>--record SERIAL OUT.mp4 [SECONDS]</c>: record headless and report the file it wrote.</item>
+/// <item><c>--render-icon DIR</c>: write app.ico and a 512 px icon.png.</item>
 /// </list>
 /// </summary>
 internal static class DevSwitches
@@ -23,8 +24,15 @@ internal static class DevSwitches
         {
             ["--probe", var serial, var outFile, ..] => Report(outFile, sb => ProbeAsync(sb, serial, outFile, Seconds(3), record: null)),
             ["--record", var serial, var mp4, ..] => Report(mp4 + ".txt", sb => ProbeAsync(sb, serial, mp4 + ".txt", Seconds(3), record: mp4)),
+            ["--render-icon", var dir] => RenderIcon(dir),
             _ => null,
         };
+    }
+
+    private static int RenderIcon(string dir)
+    {
+        UI.AppIcon.Render(dir);
+        return 0;
     }
 
     private static int Report(string outFile, Func<StringBuilder, Task<bool>> run)

@@ -9,6 +9,8 @@
     <RootNamespace>Streamy</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Drawn by UI/AppIcon.cs; regenerate with the render-icon developer switch (see the README). -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Description>Mirror and control Android phones from Windows over USB or Wi-Fi</Description>
     <!-- Controls are built in code, never in the WinForms designer. -->
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
@@ -26,6 +28,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Streamy.Core\Streamy.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\app.ico" LogicalName="app.ico" />
   </ItemGroup>
 
   <!--
