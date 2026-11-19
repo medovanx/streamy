@@ -17,6 +17,8 @@ The exe also contains these .NET libraries, compiled in:
 | --- | --- |
 | [FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen) 9.0.1.1 | MIT |
 | [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) 3.8.3 (Direct3D 11, DXGI, D3DCompiler) | MIT |
+| [NAudio](https://github.com/naudio/NAudio) 3.3.0 (Core, Wasapi) | MIT |
+| [QRCoder](https://github.com/codebude/QRCoder) 1.8.1 | MIT |
 
 The FFmpeg DLLs are loaded dynamically and can be replaced: put compatible DLLs of the same names in the folder above.
 Their source code is available from [ffmpeg.org](https://ffmpeg.org/download.html); scrcpy's build scripts are in

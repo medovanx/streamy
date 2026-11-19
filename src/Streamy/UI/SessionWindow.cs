@@ -77,7 +77,6 @@ internal sealed class SessionWindow : Form
 
     // ---- Files --------------------------------------------------------------------------------------------
 
-    private const string PushFolder = "/sdcard/Download/";
     private bool _sending;
 
     private void OnDragEnter(object? sender, DragEventArgs e) =>
@@ -90,52 +89,21 @@ internal sealed class SessionWindow : Form
         var files = paths.Where(File.Exists).ToList();
         if (files.Count == 0) return;
         _sending = true;
-        int ok = 0;
-        var failures = new List<string>();
+        FileSender.Result result;
         try
         {
-            for (int i = 0; i < files.Count; i++)
-            {
-                var file = files[i];
-                var name = Path.GetFileName(file);
-                string counter = files.Count > 1 ? $" ({i + 1}/{files.Count})" : "";
-                try
-                {
-                    if (file.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Flash($"Installing {name}{counter}", seconds: 600);
-                        var r = await AdbClient.Default.InstallAsync(_session.Serial, file);
-                        if (Core.Adb.AdbParsers.IsInstallSuccess(r.All)) ok++;
-                        else failures.Add($"{name}: {Core.Adb.AdbParsers.InstallFailure(r.All) ?? r.All.Trim()}");
-                    }
-                    else
-                    {
-                        Flash($"Sending {name}{counter}", seconds: 600);
-                        await AdbClient.Default.PushAsync(_session.Serial, file, PushFolder + name);
-                        _session.Send(ControlMessage.ScanFile(PushFolder + name)); // show it in Gallery / Files at once
-                        ok++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "send " + name);
-                    failures.Add($"{name}: {ex.Message}");
-                }
-            }
+            result = await FileSender.SendAsync(_session.Serial, files,
+                progress: text => Flash(text, seconds: 600),
+                scan: path => _session.Send(ControlMessage.ScanFile(path))); // show it in Gallery / Files at once
         }
         finally
         {
             _sending = false;
         }
-        bool apks = files.All(f => f.EndsWith(".apk", StringComparison.OrdinalIgnoreCase));
-        Flash(failures.Count == 0
-            ? (apks ? $"Installed {Plural(ok, "app")}" : $"Sent {Plural(ok, "file")} to Download")
-            : $"{ok} done, {failures.Count} failed");
-        if (failures.Count > 0)
-            MessageBox.Show(this, string.Join("\n", failures), "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        Flash(result.Summary);
+        if (result.Failures.Count > 0)
+            MessageBox.Show(this, string.Join("\n", result.Failures), "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
-
-    private static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n} {word}s";
 
     // ---- Fullscreen ---------------------------------------------------------------------------------------
 
@@ -433,9 +401,11 @@ internal sealed class SessionWindow : Form
         var area = Screen.FromControl(this).WorkingArea;
         var chrome = Size - ClientSize + new Size(ToolBar.BarWidth, 0);
 
-        int longSide = center || _frameSize.IsEmpty
-            ? (int)(frame.Height >= frame.Width ? area.Height * 0.85 : area.Width * 0.7)
-            : Math.Max(_view.ClientSize.Width, _view.ClientSize.Height);
+        // The picture's long side is what the user chose (by resizing) or the first fit; a rotation keeps it, even
+        // when the screen made the previous orientation smaller, so rotating back and forth never shrinks the window.
+        if (center || _preferredLongSide == 0)
+            _preferredLongSide = (int)(frame.Height >= frame.Width ? area.Height * 0.85 : area.Width * 0.7);
+        int longSide = _preferredLongSide;
         _frameSize = frame;
         double scale = (double)longSide / Math.Max(frame.Width, frame.Height);
         var video = new Size((int)(frame.Width * scale), (int)(frame.Height * scale));
@@ -457,6 +427,16 @@ internal sealed class SessionWindow : Form
             Location = new Point(Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - Width)), Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - Height)));
         }
         UpdateMapper();
+    }
+
+    private int _preferredLongSide;
+
+    /// <summary>The user resized the window by hand: remember the size for the next rotation.</summary>
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        if (FormBorderStyle != FormBorderStyle.None)
+            _preferredLongSide = Math.Max(_view.ClientSize.Width, _view.ClientSize.Height);
     }
 
     protected override async void OnFormClosed(FormClosedEventArgs e)

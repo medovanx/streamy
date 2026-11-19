@@ -46,10 +46,20 @@ public sealed class AdbClient(string adbPath)
     }
 
     public async Task<IReadOnlyList<AdbDevice>> DevicesAsync(CancellationToken ct = default) =>
-        AdbParsers.ParseDevices((await RunAsync(["devices", "-l"], ct: ct)).Output);
+        AdbParsers.ParseDevices((await RunAsync(["devices", "-l"], timeout: TimeSpan.FromSeconds(10), ct: ct)).Output);
 
-    public async Task<IReadOnlyList<AdbMdnsService>> MdnsServicesAsync(CancellationToken ct = default) =>
-        AdbParsers.ParseMdnsServices((await RunAsync(["mdns", "services"], ct: ct)).Output);
+    /// <summary>Wireless debugging services seen on the network. Kept short: a stuck mDNS query holds up the adb server.</summary>
+    public async Task<IReadOnlyList<AdbMdnsService>> MdnsServicesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return AdbParsers.ParseMdnsServices((await RunAsync(["mdns", "services"], timeout: TimeSpan.FromSeconds(5), ct: ct)).Output);
+        }
+        catch (TimeoutException)
+        {
+            return [];
+        }
+    }
 
     public async Task<AdbResult> PairAsync(string endpoint, string code, CancellationToken ct = default) =>
         await RunAsync(["pair", endpoint, code], timeout: TimeSpan.FromSeconds(20), ct: ct);

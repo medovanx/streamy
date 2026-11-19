@@ -25,6 +25,13 @@ internal static class DevSwitches
             ["--probe", var serial, var outFile, ..] => Report(outFile, sb => ProbeAsync(sb, serial, outFile, Seconds(3), record: null)),
             ["--record", var serial, var mp4, ..] => Report(mp4 + ".txt", sb => ProbeAsync(sb, serial, mp4 + ".txt", Seconds(3), record: mp4)),
             ["--render-icon", var dir] => RenderIcon(dir),
+            ["--send", var serial, var outFile, .. var files] => Report(outFile, async sb =>
+            {
+                var r = await FileSender.SendAsync(serial, files, progress: line => sb.AppendLine(line));
+                sb.AppendLine(r.Summary);
+                foreach (var f in r.Failures) sb.AppendLine("failed: " + f);
+                return true;
+            }),
             _ => null,
         };
     }

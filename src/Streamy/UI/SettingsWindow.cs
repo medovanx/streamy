@@ -124,7 +124,7 @@ internal sealed class SettingsWindow : Form
 
     private static Control FolderPicker(TextBox box, string placeholder)
     {
-        box.PlaceholderText = placeholder;
+        box.PlaceholderText = SaveFolders.Short(placeholder); // "Pictures\Streamy" when left empty
         var browse = new Button { Text = "Browse", AutoSize = true };
         browse.Click += (_, _) =>
         {

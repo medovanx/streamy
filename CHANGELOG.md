@@ -3,6 +3,34 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-11-19
+
+Everything planned for 1.0: sound, recording, files, Wi-Fi pairing, phone details and settings.
+
+### Added
+- The phone's sound plays on the PC (Android 11+): Opus decoded with FFmpeg and played through WASAPI with a 40 ms buffer that follows the default output device. Anything queued past 200 ms is dropped so sound stays with the picture. Mute from the toolbar; volume in Settings.
+- Record to MP4 from the toolbar: the phone's video and sound are written without re-encoding, starting at once (Streamy asks the phone for a fresh key frame) and surviving rotations. The title bar shows the running time.
+- Screenshot from the toolbar: the full-resolution frame is saved as PNG and copied to the clipboard.
+- Drop files on a phone's window: APKs are installed or updated, other files go to the phone's Download folder and show up in Gallery and Files at once.
+- Phone details beside the device list: Android version and security patch, model, build, CPU (chip, cores, top clock), GPU, RAM, storage, battery and screen, refreshed every 15 seconds. Right-click to copy them.
+- Pair with QR: Streamy shows the code Android's Wireless debugging scans, finds the phone over mDNS and pairs.
+- Switch to Wi-Fi: moves a USB phone to Wi-Fi (TCP mode) in one click, for any Android version.
+- Wi-Fi phones are remembered, listed while away and reconnected by themselves. Right-click a phone to disconnect or forget it.
+- Mirror all opens a window for every ready phone; a phone that is already open is brought forward instead of opened twice.
+- Settings window: resolution, bit rate, frame rate and codec; sound and volume; show touches, keep awake, screen off at start, lock on close; keep windows on top; screenshot and recording folders; update checks.
+- Toolbar: Fullscreen (also F11) and Keep on top. The toolbar shrinks its buttons to fit when the window is short.
+- Updates from GitHub Releases, checked at start, verified with SHA-256 and installed in place.
+- App icon.
+- Errors are logged to `%LOCALAPPDATA%\Streamy\streamy.log`.
+
+### Changed
+- The Show touches checkbox moved into Settings.
+- Rotating the phone keeps the window's size, even after the screen made one orientation smaller.
+
+### Fixed
+- Screenshots and recordings fall back to `%USERPROFILE%\Streamy` when Windows' Controlled Folder Access blocks Pictures and Videos.
+- The device list no longer rebuilds itself every 2 seconds, which could swallow a click on a button that was briefly disabled.
+
 ## [0.3.0] - 2026-11-19
 
 The phone can now be used from the PC with the mouse and keyboard.
@@ -41,6 +69,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.0.0]: https://github.com/medovanx/streamy/releases/tag/v1.0.0
 [0.3.0]: https://github.com/medovanx/streamy/releases/tag/v0.3.0
 [0.2.0]: https://github.com/medovanx/streamy/releases/tag/v0.2.0
 [0.1.0]: https://github.com/medovanx/streamy/releases/tag/v0.1.0
