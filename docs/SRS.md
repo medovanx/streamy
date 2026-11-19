@@ -39,6 +39,7 @@ the clipboard between the two, and handles several phones at once.
 - FR-12 Follow rotation (new session packet) by resizing the window. **Done in 0.2.0.**
 - FR-13 Quality settings: max size, bit rate, max fps, codec.
 - FR-14 Window options: always on top, fullscreen, pixel-perfect 1:1, turn the phone screen off while mirroring, keep awake.
+- FR-15 Show touches: an option to show a dot on the phone wherever it is touched while mirroring, restoring the phone's own setting afterwards. **Done in 0.2.0.**
 
 ### 3.3 Input
 

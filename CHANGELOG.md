@@ -12,6 +12,7 @@ The phone's screen now shows in the session window.
 - Direct3D 11 display: the picture is converted from YUV to RGB on the graphics card, using the colours the stream declares (BT.601 or BT.709, limited or full range). Frames are never queued: when the window falls behind it skips straight to the newest one.
 - The session window opens at the phone's shape (85% of the screen height for a portrait phone), keeps the picture's proportions with black bars when resized, and turns around its centre when the phone rotates.
 - The window title shows the frames drawn per second.
+- **Show touches** option in the main window: a dot appears on the phone's screen wherever it is touched while mirroring. It applies to sessions started after changing it, and the phone's own setting comes back when mirroring ends, even if Streamy is closed abruptly. The choice is saved in `%APPDATA%\Streamy\settings.json`.
 - `--mirror SERIAL` opens a session window for that phone at start. `--probe` also decodes and saves the newest frame as a PNG beside its report.
 
 ## [0.1.0] - 2026-11-19

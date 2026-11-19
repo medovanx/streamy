@@ -43,6 +43,7 @@ Working now:
 - **Device list.** Every phone adb can see, with its model, whether it is on USB or Wi-Fi, and whether it is ready or waiting for you to allow debugging on the phone. It refreshes by itself.
 - **Wi-Fi without cables.** Pair with the six-digit code from Android's Wireless debugging, or connect to a known IP and port.
 - **Live screen.** Double-click a phone and its screen opens in a window, decoded with FFmpeg and drawn with Direct3D 11. The window takes the phone's shape, keeps its proportions when you resize it and turns with the phone. Each session has its own id and port, so several phones can stream at once.
+- **Show touches.** A switch in the main window shows a dot on the phone wherever it is touched while you mirror it, handy for recordings and demos. The phone's own setting comes back afterwards.
 - **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install.
 
 Coming for 1.0: mouse and keyboard control (Arabic text included), hardware decoding,

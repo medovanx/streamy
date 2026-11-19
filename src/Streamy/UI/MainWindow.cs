@@ -19,6 +19,8 @@ internal sealed class MainWindow : Form
     };
     private readonly Label _status = new() { Dock = DockStyle.Bottom, Height = 28, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0) };
     private readonly Button _mirror = new() { Text = "Mirror", AutoSize = true, Enabled = false };
+    private readonly CheckBox _showTouches = new() { Text = "Show touches", AutoSize = true, Margin = new Padding(12, 7, 3, 3) };
+    private readonly ToolTip _tips = new();
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
     private bool _refreshing;
 
@@ -43,7 +45,16 @@ internal sealed class MainWindow : Form
         _mirror.Click += async (_, _) => await MirrorSelectedAsync();
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = false };
-        bar.Controls.AddRange([_mirror, connect, pair]);
+        _showTouches.Checked = AppSettings.Current.ShowTouches;
+        _showTouches.CheckedChanged += (_, _) =>
+        {
+            AppSettings.Current.ShowTouches = _showTouches.Checked;
+            AppSettings.Current.Save();
+        };
+        _tips.SetToolTip(_showTouches,
+            "Show a dot on the phone's screen wherever it is touched.\n" +
+            "Applies to phones you start mirroring after changing it; the phone's own setting is restored when mirroring ends.");
+        bar.Controls.AddRange([_mirror, connect, pair, _showTouches]);
 
         Controls.Add(_list);
         Controls.Add(bar);
@@ -105,7 +116,11 @@ internal sealed class MainWindow : Form
     /// <summary>Starts a session and opens its window. Also used by the --mirror SERIAL switch.</summary>
     public async Task MirrorAsync(string serial, string? displayName = null)
     {
-        var session = new MirrorSession(AdbClient.Default, serial, new ServerOptions { Scid = ServerOptions.NewScid() });
+        var session = new MirrorSession(AdbClient.Default, serial, new ServerOptions
+        {
+            Scid = ServerOptions.NewScid(),
+            ShowTouches = AppSettings.Current.ShowTouches,
+        });
         _status.Text = $"Starting {displayName ?? serial}...";
         try
         {
@@ -154,6 +169,7 @@ internal sealed class MainWindow : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _poll.Dispose();
+        _tips.Dispose();
         base.OnFormClosed(e);
     }
 }
