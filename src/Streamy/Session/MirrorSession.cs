@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using Streamy.Core.Protocol;
 using Streamy.Core.Server;
 using Streamy.Services;
+using Streamy.Video;
 
 namespace Streamy.Session;
 
@@ -50,6 +51,11 @@ public sealed class MirrorSession : IAsyncDisposable
     public int Height { get; private set; }
     public StreamStats VideoStats { get; } = new();
     public StreamStats AudioStats { get; } = new();
+
+    /// <summary>The video decoder, created once the codec is known. Null when video is off.</summary>
+    public VideoDecoder? Decoder { get; private set; }
+
+    private readonly PacketMerger _merger = new();
 
     private readonly System.Text.StringBuilder _log = new();
 
@@ -98,6 +104,7 @@ public sealed class MirrorSession : IAsyncDisposable
         {
             VideoCodec = await ReadCodecAsync(_video, ct);
             if (VideoCodec == CodecId.Error) throw new IOException("The phone could not start video capture.\n" + ServerLog);
+            Decoder = new VideoDecoder(VideoCodec);
             _readers.Add(Task.Run(() => PumpAsync(_video, VideoStats, isVideo: true, _cts.Token)));
         }
         if (_audio is not null)
@@ -168,6 +175,8 @@ public sealed class MirrorSession : IAsyncDisposable
             }
             if (payload.Length < h.PayloadSize) payload = new byte[h.PayloadSize];
             await ReadExactAsync(s, payload.AsMemory(0, h.PayloadSize), ct);
+            if (isVideo && Decoder is { } decoder && _merger.Merge(h, payload.AsSpan(0, h.PayloadSize)) is { } data)
+                decoder.Decode(data, h.Pts, h.IsKeyFrame);
             Interlocked.Increment(ref stats.Packets);
             Interlocked.Add(ref stats.Bytes, h.PayloadSize);
             if (h.IsKeyFrame) Interlocked.Increment(ref stats.KeyFrames);
@@ -213,6 +222,7 @@ public sealed class MirrorSession : IAsyncDisposable
         try { await Task.WhenAll(_readers).WaitAsync(TimeSpan.FromSeconds(2)); } catch { /* readers end with errors when their socket closes */ }
         if (_server is { HasExited: false }) { try { _server.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } }
         _server?.Dispose();
+        Decoder?.Dispose();
         if (_localPort != 0) { try { await _adb.RemoveForwardAsync(_serial, _localPort); } catch (Exception) { } }
         _cts.Dispose();
     }

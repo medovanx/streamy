@@ -20,7 +20,9 @@ internal static class Program
 
         ApplicationConfiguration.Initialize();
         Application.SetColorMode(SystemColorMode.System);
-        Application.Run(new MainWindow());
+        var main = new MainWindow();
+        if (args is ["--mirror", var mirrorSerial, ..]) main.Shown += async (_, _) => await main.MirrorAsync(mirrorSerial);
+        Application.Run(main);
         return 0;
     }
 
@@ -42,6 +44,14 @@ internal static class Program
             sb.AppendLine($"frame: {session.Width}x{session.Height}");
             sb.AppendLine($"video: {session.VideoStats.Packets} packets, {session.VideoStats.KeyFrames} key frames, {session.VideoStats.Bytes} bytes");
             sb.AppendLine($"audio: {session.AudioStats.Packets} packets, {session.AudioStats.Bytes} bytes");
+            sb.AppendLine($"decoded: {session.Decoder?.DecodedFrames ?? 0} frames");
+            if (session.Decoder?.Frames.Take() is { } frame)
+            {
+                var png = Path.ChangeExtension(outFile, ".png");
+                using var bmp = Video.FrameSnapshot.ToBitmap(frame);
+                bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+                sb.AppendLine($"snapshot: {png} ({frame.Width}x{frame.Height}, {(frame.Color.Bt709 ? "BT.709" : "BT.601")}, {(frame.Color.FullRange ? "full" : "limited")} range)");
+            }
             sb.AppendLine("result: ok");
             return Finish(0);
         }

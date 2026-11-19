@@ -11,6 +11,13 @@ to `%LOCALAPPDATA%\Streamy\bin\5.0.1` when it runs.
 | `adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll` | [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools) (Android Open Source Project) | [Apache License 2.0](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/NOTICE) |
 | `avcodec-63.dll`, `avformat-63.dll`, `avutil-61.dll`, `swresample-7.dll` | [FFmpeg](https://ffmpeg.org/), as built by scrcpy | [GNU LGPL 2.1 or later](https://ffmpeg.org/legal.html) |
 
+The exe also contains these .NET libraries, compiled in:
+
+| Library | License |
+| --- | --- |
+| [FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen) 9.0.1.1 | MIT |
+| [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) 3.8.3 (Direct3D 11, DXGI, D3DCompiler) | MIT |
+
 The FFmpeg DLLs are loaded dynamically and can be replaced: put compatible DLLs of the same names in the folder above.
 Their source code is available from [ffmpeg.org](https://ffmpeg.org/download.html); scrcpy's build scripts are in
 [its repository](https://github.com/Genymobile/scrcpy/tree/v5.0.1/app/deps).

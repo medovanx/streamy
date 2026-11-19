@@ -12,7 +12,15 @@
     <Description>Mirror and control Android phones from Windows over USB or Wi-Fi</Description>
     <!-- Controls are built in code, never in the WinForms designer. -->
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Bindings for FFmpeg 9.0.1, the version of the avcodec-63 DLLs scrcpy 5.0.1 ships. -->
+    <PackageReference Include="FFmpeg.AutoGen" Version="9.0.1.1" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Streamy.Core\Streamy.Core.csproj" />

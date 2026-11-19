@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: draft for 1.0. Last updated 2026-11-19.
+Status: draft for 1.0. Last updated 2026-11-19 (0.2.0).
 
 ## 1. Purpose
 
@@ -18,6 +18,7 @@ the clipboard between the two, and handles several phones at once.
 | PC stack | .NET 11, WinForms, Windows 10 (19041) and 11, x64. Same layout as Data Tide and Salaty Reminder. |
 | Packaging | One self-contained `Streamy.exe`. adb, scrcpy-server and the FFmpeg DLLs are embedded and unpacked to `%LOCALAPPDATA%\Streamy\bin\<scrcpy version>` on first run. |
 | Versioning | Semantic Versioning in `Directory.Build.props`; tag `vX.Y.Z` builds and publishes a GitHub Release. |
+| Video | FFmpeg software decoding (FFmpeg.AutoGen 9.0.1, matching the bundled avcodec-63) and a Direct3D 11 renderer (Vortice.Windows) that converts YUV to RGB in a shader. |
 | Pinned scrcpy | 5.0.1 (`deps.json`, SHA-256 checked). The server refuses a client with a different version string, so `ScrcpyProtocol.ServerVersion` and `deps.json` always change together. |
 
 ## 3. Functional requirements for 1.0
@@ -34,8 +35,8 @@ the clipboard between the two, and handles several phones at once.
 ### 3.2 Mirroring
 
 - FR-10 Start a session: push the server, `adb forward tcp:0`, start the server, connect video, audio and control sockets, read device name and codecs. **Done in 0.1.0 (verified on a Galaxy A36, Android 15).**
-- FR-11 Decode H.264/H.265/AV1 with FFmpeg (D3D11VA hardware decoding, software fallback) and draw it in the session window, keeping the aspect ratio.
-- FR-12 Follow rotation (new session packet) by resizing the window.
+- FR-11 Decode H.264/H.265/AV1 with FFmpeg and draw it in the session window, keeping the aspect ratio. **Done in 0.2.0 with software decoding (about 100 fps from a Galaxy A36 at 1280 px).** D3D11VA hardware decoding is still to do, to save CPU at high resolutions.
+- FR-12 Follow rotation (new session packet) by resizing the window. **Done in 0.2.0.**
 - FR-13 Quality settings: max size, bit rate, max fps, codec.
 - FR-14 Window options: always on top, fullscreen, pixel-perfect 1:1, turn the phone screen off while mirroring, keep awake.
 
@@ -81,7 +82,7 @@ the clipboard between the two, and handles several phones at once.
 | Version | Content |
 | --- | --- |
 | 0.1.0 | Repo, device list, pair/connect, session handshake and stream statistics, CI and releases |
-| 0.2.0 | Video decoding and display (FR-11, FR-12) |
+| 0.2.0 | Video decoding and display (FR-11, FR-12). Done. |
 | 0.3.0 | Mouse and keyboard input, toolbar (FR-20 to FR-23) |
 | 0.4.0 | Audio playback, recording, screenshots (FR-30 to FR-32) |
 | 0.5.0 | Files, clipboard, QR pairing, remembered devices (FR-4 to FR-6, FR-40, FR-41) |
@@ -91,10 +92,9 @@ the clipboard between the two, and handles several phones at once.
 ## 6. Open questions
 
 1. **Code signing.** Unsigned exes trigger SmartScreen. Is a certificate planned, or is "More info > Run anyway" acceptable as for Data Tide?
-2. **Renderer.** Direct3D 11 (zero-copy from D3D11VA, lowest latency, more code) or a GDI/WinForms bitmap (simpler, more CPU). Proposed: Direct3D 11 through Vortice.Windows.
-3. **Audio output.** NAudio (WASAPI) is proposed for playing decoded PCM.
-4. **Camera mode.** scrcpy can stream the phone's camera as a source (`video_source=camera`). Wanted for 1.0, later, or never?
-5. **Virtual display / app windows.** scrcpy 3+ can start an app on a separate virtual display (a "window" for one app). Wanted?
-6. **Private repository and updates.** The repo `medovanx/streamy` is private. Running copies can't read a private
+2. **Audio output.** NAudio (WASAPI) is proposed for playing decoded PCM.
+3. **Camera mode.** scrcpy can stream the phone's camera as a source (`video_source=camera`). Wanted for 1.0, later, or never?
+4. **Virtual display / app windows.** scrcpy 3+ can start an app on a separate virtual display (a "window" for one app). Wanted?
+5. **Private repository and updates.** The repo `medovanx/streamy` is private. Running copies can't read a private
    repo's GitHub Releases without a token, so the updater (FR-61) only works once the repo is public, or with
    another download location. Decide before 0.6.0.

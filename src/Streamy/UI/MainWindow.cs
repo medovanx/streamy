@@ -99,9 +99,14 @@ internal sealed class MainWindow : Form
 
     private async Task MirrorSelectedAsync()
     {
-        if (Selected is not { IsReady: true } device) return;
-        var session = new MirrorSession(AdbClient.Default, device.Serial, new ServerOptions { Scid = ServerOptions.NewScid() });
-        _status.Text = $"Starting {device.DisplayName}...";
+        if (Selected is { IsReady: true } device) await MirrorAsync(device.Serial, device.DisplayName);
+    }
+
+    /// <summary>Starts a session and opens its window. Also used by the --mirror SERIAL switch.</summary>
+    public async Task MirrorAsync(string serial, string? displayName = null)
+    {
+        var session = new MirrorSession(AdbClient.Default, serial, new ServerOptions { Scid = ServerOptions.NewScid() });
+        _status.Text = $"Starting {displayName ?? serial}...";
         try
         {
             await session.StartAsync();

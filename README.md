@@ -8,7 +8,7 @@ Streamy mirrors an Android phone's screen to Windows and lets you use it with yo
 Nothing is installed on the phone: Streamy talks to it through adb and the open-source scrcpy server.
 Several phones can run side by side, each in its own window.
 
-![Status: preview](https://img.shields.io/badge/status-0.1%20preview-c27c0e?style=flat-square)
+![Status: preview](https://img.shields.io/badge/status-0.2%20preview-c27c0e?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0870a8?style=flat-square)](LICENSE)
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0870a8?style=flat-square&logo=windows)
 ![.NET 11](https://img.shields.io/badge/.NET-11-0870a8?style=flat-square&logo=dotnet)
@@ -22,15 +22,15 @@ Several phones can run side by side, each in its own window.
 
 ## Status
 
-Streamy is in early development. **0.1.0 finds phones, pairs and connects over Wi-Fi, and opens a live
-session that receives the phone's video, audio and clipboard, but it does not draw the picture yet.**
+Streamy is in early development. **0.2.0 shows the phone's screen live in a window, over USB or Wi-Fi.
+You can't control the phone from the PC yet: mouse and keyboard input come in 0.3.0.**
 The full plan is in the [requirements document](docs/SRS.md).
 
 | Milestone | Content | State |
 | --- | --- | --- |
 | 0.1.0 | Device list, Wi-Fi pairing, session handshake, CI and releases | Done |
-| 0.2.0 | Video decoding and display, rotation | Next |
-| 0.3.0 | Mouse and keyboard control, toolbar | Planned |
+| 0.2.0 | Video decoding and display, rotation | Done |
+| 0.3.0 | Mouse and keyboard control, toolbar | Next |
 | 0.4.0 | Phone audio on the PC, MP4 recording, screenshots | Planned |
 | 0.5.0 | Drag and drop files and APKs, clipboard sync, QR pairing, remembered devices | Planned |
 | 0.6.0 | Settings, Arabic, auto-updates | Planned |
@@ -42,10 +42,10 @@ Working now:
 
 - **Device list.** Every phone adb can see, with its model, whether it is on USB or Wi-Fi, and whether it is ready or waiting for you to allow debugging on the phone. It refreshes by itself.
 - **Wi-Fi without cables.** Pair with the six-digit code from Android's Wireless debugging, or connect to a known IP and port.
-- **Sessions.** Double-click a phone to start a session: video (H.264), audio (Opus) and control streams are connected and their live statistics shown. Each session has its own id and port, so several phones can stream at once.
+- **Live screen.** Double-click a phone and its screen opens in a window, decoded with FFmpeg and drawn with Direct3D 11. The window takes the phone's shape, keeps its proportions when you resize it and turns with the phone. Each session has its own id and port, so several phones can stream at once.
 - **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install.
 
-Coming for 1.0: the picture itself with hardware decoding, mouse and keyboard control (Arabic text included),
+Coming for 1.0: mouse and keyboard control (Arabic text included), hardware decoding,
 Back/Home/Recents buttons, phone audio on the PC, MP4 recording, screenshots, drag-and-drop files and APKs,
 two-way clipboard, QR pairing, English and Arabic, and auto-updates.
 
@@ -77,6 +77,7 @@ PC, through adb on your own USB cable or local network. Nothing is sent anywhere
 
 - **The phone side** is [scrcpy-server](https://github.com/Genymobile/scrcpy) 5.0.1. Streamy pushes it to `/data/local/tmp`, starts it through `adb shell app_process` with a random session id, and opens `adb forward tcp:0` to the session's abstract socket. The server captures the screen with `MediaCodec` (H.264 by default) and the audio with `AudioRecord` (Opus), and injects touch and key events. It leaves nothing behind when the session ends.
 - **Streams.** Three sockets are opened in order: video, audio, control. The first one carries the device name; each media stream starts with its codec id, then 12-byte packet headers carry the PTS, key frame and config flags, and the size. A session packet announces the frame size on start and after every rotation.
+- **Video.** The codec configuration packet is put in front of the next frame, and FFmpeg decodes it in low-delay mode on the stream's reader thread. Frames go through a triple buffer to a render thread, which uploads the Y, U and V planes as three textures and converts them to RGB in a pixel shader with the stream's colour matrix (BT.601 or BT.709, limited or full range). The picture is letterboxed with the viewport and presented with a flip-model swap chain. A late frame is never queued: the newest one replaces it.
 - **Control** messages (touch, scroll, keys, text, clipboard, screen power...) are serialized byte for byte like scrcpy's own client; the unit tests use scrcpy's test vectors.
 - **Bundled files.** The release exe embeds adb, scrcpy-server and the FFmpeg DLLs from the official scrcpy Windows release (checked against its SHA-256) and unpacks them to `%LOCALAPPDATA%\Streamy\bin\5.0.1` on first run. See [third-party notices](THIRD-PARTY-NOTICES.md).
 
@@ -94,6 +95,7 @@ streamy/
 │   └── Streamy/                  The Windows app
 │       ├── Services/             adb runner, unpacking of the bundled files
 │       ├── Session/              One mirroring session: tunnel, sockets, stream readers
+│       ├── Video/                FFmpeg decoder, frame triple buffer, Direct3D 11 renderer
 │       ├── ThirdParty/           adb, scrcpy-server, FFmpeg (downloaded, not committed)
 │       └── UI/                   Device list, session window, dialogs
 ├── tests/
@@ -134,7 +136,8 @@ Developer switches:
 
 | Switch | Purpose |
 | --- | --- |
-| `--probe SERIAL OUT [SECONDS]` | Start one session without a window, stream for a few seconds (5 by default) and write the device name, codecs, frame size and packet counts to `OUT` |
+| `--mirror SERIAL` | Open the session window for that phone at start |
+| `--probe SERIAL OUT [SECONDS]` | Start one session without a window, stream for a few seconds (5 by default), write the device name, codecs, frame size and packet and frame counts to `OUT`, and save the newest decoded frame as a PNG beside it |
 
 ### Updating scrcpy
 
@@ -159,7 +162,8 @@ The [release workflow](.github/workflows/release.yml) checks that the tag matche
 
 - [scrcpy](https://github.com/Genymobile/scrcpy) by Genymobile and Romain Vimont (Apache-2.0): the phone-side server and the protocol.
 - [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools) (Apache-2.0): adb.
-- [FFmpeg](https://ffmpeg.org/) (LGPL-2.1+): video and audio decoding.
+- [FFmpeg](https://ffmpeg.org/) (LGPL-2.1+): video and audio decoding, through [FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen) (MIT).
+- [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) (MIT): Direct3D 11 bindings.
 
 ## License
 
