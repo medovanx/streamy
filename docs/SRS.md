@@ -21,7 +21,7 @@ the clipboard between the two, shows the phone's details, and handles several ph
 | Video | FFmpeg software decoding (FFmpeg.AutoGen 9.0.1, matching the bundled avcodec-63) and a Direct3D 11 renderer (Vortice.Windows) that converts YUV to RGB in a shader. |
 | Audio | FFmpeg decoding, NAudio WASAPI playback. |
 | Versioning | Semantic Versioning in `Directory.Build.props`; a `vX.Y.Z` tag builds and publishes a GitHub Release (0.x as pre-releases). |
-| Repository | `medovanx/streamy`, private, MIT. |
+| Repository | `medovanx/streamy`, public, MIT. |
 | Pinned scrcpy | 5.0.1 (`deps.json`, SHA-256 checked). `ScrcpyProtocol.ServerVersion` and `deps.json` always change together. |
 | Code signing | None for now; SmartScreen's "Run anyway" as for Data Tide. |
 
@@ -73,7 +73,7 @@ All are done in 1.0.0 unless marked otherwise.
 
 ### 3.7 App
 
-- FR-61 Auto-update from GitHub Releases with SHA-256 checking. *While the repository is private, running copies cannot read its releases (GitHub answers 404) and the check stays silent; it works once the repository is public.*
+- FR-61 Auto-update from GitHub Releases with SHA-256 checking.
 - FR-62 Settings in `%APPDATA%\Streamy\settings.json`; errors logged to `%LOCALAPPDATA%\Streamy\streamy.log`.
 - FR-63 App icon at every Windows size.
 

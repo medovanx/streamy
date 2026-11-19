@@ -11,7 +11,9 @@ It plays the phone's sound on the PC, records to MP4, takes screenshots, install
 by drag and drop, and shares the clipboard. Nothing is installed on the phone, and several phones can run
 side by side, each in its own window.
 
-![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-0870a8?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/medovanx/streamy?style=flat-square&color=0870a8)](https://github.com/medovanx/streamy/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/medovanx/streamy/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/medovanx/streamy/actions/workflows/ci.yml)
+[![Downloads](https://img.shields.io/github/downloads/medovanx/streamy/total?style=flat-square&color=0870a8)](https://github.com/medovanx/streamy/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0870a8?style=flat-square)](LICENSE)
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0870a8?style=flat-square&logo=windows)
 ![.NET 11](https://img.shields.io/badge/.NET-11-0870a8?style=flat-square&logo=dotnet)
@@ -38,7 +40,7 @@ side by side, each in its own window.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
-- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases (once the repository is public; see [Privacy](#privacy)).
+- **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases.
 
 ## Screenshots
 
@@ -134,9 +136,6 @@ PC, over your own USB cable or local network.
 | Service | When | What it sends |
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks (turn them off in Settings) | Nothing besides the request |
-
-While this repository is private, GitHub does not show its releases to running copies, so the update check finds nothing
-and stays silent. Download new versions from the Releases page until the repository is public.
 
 ## How it works
 
