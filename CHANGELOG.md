@@ -3,6 +3,12 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-11-20
+
+### Added
+- Gallery: the phone's photos and videos by album in a thumbnail grid that scrolls smoothly through thousands of items. Thumbnails come from the phone, so HEIC photos and videos show without any codec on the PC; they load visible-first, eight at a time, and are cached on disk so an album opens at once the next time. Videos show their length. Select with click, Ctrl, Shift or Ctrl+A; open on the PC with a double-click; download a selection; upload into the open album (the phone indexes the files right away); delete after a confirmation. Open it with **Gallery** in the main window, on a phone's right-click menu, or from its toolbar.
+- `--gallery SERIAL OUT` developer switch that tests every gallery operation with a generated picture.
+
 ## [1.2.0] - 2026-11-19
 
 ### Added
@@ -83,6 +89,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.3.0]: https://github.com/medovanx/streamy/releases/tag/v1.3.0
 [1.2.0]: https://github.com/medovanx/streamy/releases/tag/v1.2.0
 [1.1.0]: https://github.com/medovanx/streamy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/medovanx/streamy/releases/tag/v1.0.0

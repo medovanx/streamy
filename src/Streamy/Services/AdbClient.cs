@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Streamy.Core.Adb;
 using Streamy.Core.Files;
+using Streamy.Core.Media;
 
 namespace Streamy.Services;
 
@@ -83,6 +84,46 @@ public sealed class AdbClient(string adbPath)
 
     public async Task<AdbResult> ShellAsync(string serial, IEnumerable<string> command, CancellationToken ct = default) =>
         await RunAsync(["shell", .. command], serial, ct: ct);
+
+    // ---- Media library ----
+
+    /// <summary>Every photo and video in the phone's media library, newest first.</summary>
+    public async Task<IReadOnlyList<MediaItem>> QueryMediaAsync(string serial, CancellationToken ct = default)
+    {
+        var r = await RunAsync(["shell", MediaStore.QueryCommand], serial, TimeSpan.FromMinutes(2), ct);
+        if (!r.Ok && r.Output.Length == 0) throw new IOException(CleanShellError(r.All));
+        return MediaStore.Parse(r.Output);
+    }
+
+    /// <summary>The raw bytes of a content URI (a thumbnail or a whole photo), through exec-out so nothing is altered.</summary>
+    public async Task<byte[]> ReadContentAsync(string serial, string uri, CancellationToken ct = default)
+    {
+        using var p = new Process { StartInfo = CreateStartInfo(["exec-out", "content read --uri " + uri], serial) };
+        p.Start();
+        using var ms = new MemoryStream();
+        var copy = p.StandardOutput.BaseStream.CopyToAsync(ms, ct);
+        var err = p.StandardError.ReadToEndAsync(ct);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            await p.WaitForExitAsync(cts.Token);
+            await copy;
+        }
+        catch (OperationCanceledException)
+        {
+            try { p.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            throw;
+        }
+        await err;
+        return ms.ToArray();
+    }
+
+    public Task DeleteMediaAsync(string serial, IEnumerable<MediaItem> items, CancellationToken ct = default) =>
+        ShellChecked(serial, MediaStore.DeleteCommand(items), ct);
+
+    public Task ScanMediaAsync(string serial, string devicePath, CancellationToken ct = default) =>
+        ShellChecked(serial, MediaStore.ScanCommand(devicePath), ct);
 
     // ---- Files ----
 

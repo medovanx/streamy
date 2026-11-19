@@ -7,7 +7,8 @@
 **Your Android phone in a window on your PC. Watch it, hear it, control it, over USB or Wi-Fi.**
 
 Streamy mirrors an Android phone's screen to Windows and lets you use it with your mouse and keyboard.
-It plays the phone's sound on the PC, records to MP4, takes screenshots, browses and manages the phone's files,
+It plays the phone's sound on the PC, records to MP4, takes screenshots, shows the phone's photos and videos by album,
+browses and manages the phone's files,
 installs APKs by drag and drop, and shares the clipboard. Nothing is installed on the phone, and several phones can run
 side by side, each in its own window.
 
@@ -33,11 +34,12 @@ side by side, each in its own window.
 - **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses (Arabic, accents and emoji go through the phone's clipboard and are pasted), and shortcuts like Ctrl+A or Ctrl+C work.
 - **Sound.** The phone's audio plays on the PC (Android 11+), kept in sync with the picture, with mute and volume.
 - **Record and capture.** Record the screen and sound to MP4 without re-encoding, or save a full-resolution screenshot that is also copied to the clipboard.
+- **Gallery.** The phone's photos and videos by album as a thumbnail grid (HEIC and videos included, no codecs needed on the PC). Open one on the PC, download a selection, upload into an album, or delete.
 - **File manager.** Browse the phone's storage, download files and folders to the PC, upload by button or by dropping them from Explorer, create folders, rename and delete. Double-click a file to open it on the PC.
 - **Files and apps.** Drop APKs on a phone's window to install or update them; drop any other file to put it in the phone's Download folder, where Gallery and Files see it at once.
 - **Clipboard.** Copy on the phone, paste on the PC. Ctrl+V in the window pastes the PC's clipboard on the phone.
 - **Phone details.** Android version, model, build, CPU, GPU, RAM, storage, battery and screen of the selected phone, beside the device list.
-- **Toolbar.** Power, volume, rotate, Back, Home, Recent apps, notifications, files, screenshot, record, mute, fullscreen and keep on top, beside each phone's screen.
+- **Toolbar.** Power, volume, rotate, Back, Home, Recent apps, notifications, gallery, files, screenshot, record, mute, fullscreen and keep on top, beside each phone's screen.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
@@ -113,8 +115,24 @@ Some phones (Xiaomi, OPPO and others) block mouse and keyboard input from the PC
 | F11 | Fullscreen on and off |
 
 Toolbar, top to bottom: Power (right-click turns only the phone's screen off and keeps mirroring), Volume up, Volume down,
-Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Files, Screenshot, Record, Mute, Fullscreen
+Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Gallery, Files, Screenshot, Record, Mute, Fullscreen
 and Keep on top (right-click keeps every phone's window on top).
+
+## Gallery
+
+Open it with **Gallery** in the main window, on a phone's right-click menu, or from its toolbar. Albums are on the left
+(all photos and videos, videos only, then the phone's albums by size), thumbnails on the right, newest first.
+
+| Action | How |
+| --- | --- |
+| Select | Click; Ctrl+click to add, Shift+click for a range, Ctrl+A for all, arrows to move |
+| Open on the PC | Double-click or Enter (it is copied to a temporary folder first) |
+| Download | Select, **Download**, pick a folder |
+| Upload | **Upload** puts photos and videos into the open album's folder (`Pictures/Streamy` for the first two) and the phone indexes them at once |
+| Delete | **Delete** or the Delete key, after a confirmation. Deleted items do not go to the phone's trash |
+
+Thumbnails are made by the phone, about one per second each, eight at a time, visible ones first. Each is kept in
+`%LOCALAPPDATA%\Streamy\thumbs`, so an album opens straight away the next time.
 
 ## File manager
 
@@ -181,6 +199,7 @@ streamy/
 │   ├── Streamy.Core/             Logic with no Windows or UI dependencies
 │   │   ├── Adb/                  adb output parsers, phone details, QR pairing
 │   │   ├── Files/                Phone folder listing, paths and shell quoting
+│   │   ├── Media/                Phone media library: photos, videos, albums
 │   │   ├── Geometry/             Fitting the frame in the window, window to phone coordinates
 │   │   ├── Input/                Android key codes, Windows key map, mouse/keyboard to control messages
 │   │   ├── Protocol/             scrcpy control and device messages, packet headers, config merging
@@ -193,7 +212,7 @@ streamy/
 │       ├── Services/             adb runner, bundled files, settings, file sending, updater, log
 │       ├── Session/              One mirroring session: tunnel, sockets, stream readers, control queue
 │       ├── ThirdParty/           adb, scrcpy-server, FFmpeg (downloaded, not committed)
-│       ├── UI/                   Device list, details, phone window, toolbar, file manager, settings, pairing
+│       ├── UI/                   Device list, details, phone window, toolbar, gallery, file manager, settings, pairing
 │       └── Video/                FFmpeg video decoder, frame triple buffer, Direct3D 11 renderer
 ├── tests/
 │   └── Streamy.Core.Tests/       xUnit tests
@@ -237,6 +256,7 @@ Developer switches:
 | `--record SERIAL OUT.mp4 [SECONDS]` | Record without a window and report the file |
 | `--send SERIAL OUT FILE...` | Send files and APKs the way a drop on the window does, and report the result |
 | `--files SERIAL OUT` | Run every file manager operation in a throwaway folder on the phone and report each one |
+| `--gallery SERIAL OUT` | Read the media library, then upload, find, thumbnail, download and delete a generated test picture |
 | `--render-icon DIR` | Write `app.ico` and a 512 px `icon.png` |
 
 ### Updating scrcpy
@@ -253,8 +273,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.2.1
-git push origin v1.2.1
+git tag v1.3.1
+git push origin v1.3.1
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds

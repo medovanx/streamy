@@ -79,4 +79,5 @@ internal static class Glyph
     public static readonly string Save = G(0xE74E);
     public static readonly string Cancel = G(0xE711);
     public static readonly string Check = G(0xE73E);
+    public static readonly string Gallery = G(0xE91B);
 }

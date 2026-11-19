@@ -27,6 +27,7 @@ internal sealed class MainWindow : Form
     private readonly Button _mirrorAll = new() { Text = "Mirror all", AutoSize = true, Enabled = false };
     private readonly Button _wifi = new() { Text = "Switch to Wi-Fi", AutoSize = true, Enabled = false };
     private readonly Button _files = new() { Text = "Files", AutoSize = true, Enabled = false };
+    private readonly Button _gallery = new() { Text = "Gallery", AutoSize = true, Enabled = false };
     private readonly ToolTip _tips = new();
     private readonly DetailsPanel _details = new();
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
@@ -72,6 +73,7 @@ internal sealed class MainWindow : Form
         _mirrorAll.Click += async (_, _) => await MirrorAllAsync();
         _wifi.Click += async (_, _) => await SwitchToWifiAsync();
         _files.Click += (_, _) => OpenFiles();
+        _gallery.Click += (_, _) => OpenGallery();
 
         _tips.SetToolTip(_mirrorAll, "Open a window for every ready phone");
         _tips.SetToolTip(pairQr, "Android 11+: pair by scanning a QR code from Wireless debugging");
@@ -84,12 +86,14 @@ internal sealed class MainWindow : Form
         Glyph.Apply(_mirror, Glyph.Mirror);
         Glyph.Apply(_mirrorAll, Glyph.MirrorAll);
         Glyph.Apply(_files, Glyph.Folder);
+        Glyph.Apply(_gallery, Glyph.Gallery);
+        _tips.SetToolTip(_gallery, "The selected phone's photos and videos by album: open, download, upload and delete");
         Glyph.Apply(pairQr, Glyph.QrCode);
         Glyph.Apply(pairCode, Glyph.Key);
         Glyph.Apply(connect, Glyph.Link);
         Glyph.Apply(_wifi, Glyph.Wifi);
         Glyph.Apply(settings, Glyph.Settings);
-        bar.Controls.AddRange([_mirror, _mirrorAll, _files, pairQr, pairCode, connect, _wifi, settings]);
+        bar.Controls.AddRange([_mirror, _mirrorAll, _files, _gallery, pairQr, pairCode, connect, _wifi, settings]);
 
         Controls.Add(_list);
         Controls.Add(_details);
@@ -123,7 +127,7 @@ internal sealed class MainWindow : Form
         _mirror.Text = row is { Saved: not null, Device: null } ? "Connect" : "Mirror";
         _mirrorAll.Enabled = _devices.Count(d => d.IsReady) > 1;
         _wifi.Enabled = row is { Device: { IsReady: true, IsWireless: false } };
-        _files.Enabled = row is { Device.IsReady: true };
+        _files.Enabled = _gallery.Enabled = row is { Device.IsReady: true };
     }
 
     private async Task RefreshAsync()
@@ -242,6 +246,7 @@ internal sealed class MainWindow : Form
         var menu = new ContextMenuStrip();
         var mirror = menu.Items.Add("Mirror", null, async (_, _) => await ActivateSelectedAsync());
         var files = menu.Items.Add("Browse files", null, (_, _) => OpenFiles());
+        var gallery = menu.Items.Add("Gallery", null, (_, _) => OpenGallery());
         var wifi = menu.Items.Add("Switch to Wi-Fi", null, async (_, _) => await SwitchToWifiAsync());
         var disconnect = menu.Items.Add("Disconnect", null, async (_, _) => await DisconnectAsync());
         var forget = menu.Items.Add("Forget", null, (_, _) => Forget());
@@ -251,7 +256,7 @@ internal sealed class MainWindow : Form
             if (row is null) { e.Cancel = true; return; }
             mirror.Text = row.Device is null ? "Connect" : "Mirror";
             mirror.Enabled = row.Device is null or { IsReady: true };
-            files.Visible = row.Device is { IsReady: true };
+            files.Visible = gallery.Visible = row.Device is { IsReady: true };
             wifi.Visible = row.Device is { IsReady: true, IsWireless: false };
             disconnect.Visible = row.Device is { IsWireless: true };
             forget.Visible = AppSettings.Current.SavedDevices.Any(s => s.Endpoint == row.Key);
@@ -280,6 +285,11 @@ internal sealed class MainWindow : Form
     private void OpenFiles()
     {
         if (Selected is { Device: { IsReady: true } d }) FileManager.Open(d.Serial, d.DisplayName);
+    }
+
+    private void OpenGallery()
+    {
+        if (Selected is { Device: { IsReady: true } d }) FileManager.OpenGallery(d.Serial, d.DisplayName);
     }
 
     private async Task MirrorAllAsync()

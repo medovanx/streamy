@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: 1.2.0. Last updated 2026-11-19.
+Status: 1.3.0. Last updated 2026-11-20.
 
 ## 1. Purpose
 
@@ -65,6 +65,7 @@ All are done in 1.0.0 unless marked otherwise.
 
 - FR-40 Drop an APK to install it; drop any other file to copy it to `/sdcard/Download` and scan it into the gallery.
 - FR-41 Two-way clipboard: phone to PC automatically, PC to phone on Ctrl+V.
+- FR-43 Gallery: photos and videos by album from Android's MediaStore (`content query`), phone-made thumbnails (`content read …/thumbnail`, so HEIC and video need no PC codecs) cached on disk, open, download, upload with media scan, delete through MediaStore. **Done in 1.3.0.**
 - FR-42 File manager: browse the phone's storage, download, upload (button and drop from Explorer), new folder, rename without overwriting, delete with confirmation, open a file on the PC; unreadable folders say why. **Done in 1.1.0.**
 
 ### 3.6 Several devices
@@ -95,6 +96,7 @@ All are done in 1.0.0 unless marked otherwise.
 | 1.0.0 | Sound, recording, screenshots, files and APKs, QR pairing, Wi-Fi switch, saved phones, phone details, settings, updater, icon |
 | 1.1.0 | File manager |
 | 1.2.0 | Update progress window, icons on buttons |
+| 1.3.0 | Gallery |
 
 ## 6. Later
 

@@ -26,6 +26,7 @@ internal static class DevSwitches
             ["--record", var serial, var mp4, ..] => Report(mp4 + ".txt", sb => ProbeAsync(sb, serial, mp4 + ".txt", Seconds(3), record: mp4)),
             ["--render-icon", var dir] => RenderIcon(dir),
             ["--files", var serial, var outFile] => Report(outFile, sb => FilesTestAsync(sb, serial)),
+            ["--gallery", var serial, var outFile] => Report(outFile, sb => GalleryTestAsync(sb, serial)),
             ["--send", var serial, var outFile, .. var files] => Report(outFile, async sb =>
             {
                 var r = await FileSender.SendAsync(serial, files, progress: line => sb.AppendLine(line));
@@ -101,6 +102,67 @@ internal static class DevSwitches
             var after = await adb.ListAsync(serial, "/sdcard/Download");
             Check("test folder removed from the phone", after.All(f => f.Name != "streamy-fm-test"));
             Directory.Delete(local, recursive: true);
+        }
+        return ok;
+    }
+
+    /// <summary>
+    /// Reads the media library, then uploads a generated test picture, finds it, fetches its thumbnail, downloads
+    /// it and deletes it again. Touches nothing but its own picture.
+    /// </summary>
+    private static async Task<bool> GalleryTestAsync(StringBuilder sb, string serial)
+    {
+        var adb = AdbClient.Default;
+        bool ok = true;
+        void Check(string what, bool cond) { sb.AppendLine($"{(cond ? "ok  " : "FAIL")} {what}"); ok &= cond; }
+        string name = $"streamy-gallery-test-{Guid.NewGuid():N}"[..30] + ".png";
+        string local = Path.Combine(Path.GetTempPath(), name);
+        using (var bmp = new Bitmap(640, 480))
+        {
+            using (var g = Graphics.FromImage(bmp)) g.Clear(Color.SteelBlue);
+            bmp.Save(local, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        const string folder = "/sdcard/Pictures/Streamy";
+        string remote = Core.Files.PhoneFiles.Combine(folder, name);
+        try
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var all = await adb.QueryMediaAsync(serial);
+            var albums = Core.Media.MediaStore.Albums(all);
+            Check($"read the library: {all.Count(i => !i.IsVideo)} photos, {all.Count(i => i.IsVideo)} videos, {albums.Count} albums in {watch.ElapsedMilliseconds} ms", all.Count > 0);
+
+            await adb.MakeFolderAsync(serial, folder);
+            await adb.PushIntoAsync(serial, local, folder);
+            await adb.ScanMediaAsync(serial, remote);
+            Core.Media.MediaItem? mine = null;
+            for (int i = 0; i < 10 && mine is null; i++)
+            {
+                await Task.Delay(500);
+                mine = (await adb.QueryMediaAsync(serial)).FirstOrDefault(m => m.Name == name);
+            }
+            Check($"upload and index ({mine?.Album}, {mine?.Width}x{mine?.Height})", mine is { Width: 640, Height: 480 });
+            if (mine is null) return false;
+
+            watch.Restart();
+            var thumb = await adb.ReadContentAsync(serial, mine.ThumbnailUri);
+            Check($"thumbnail: {thumb.Length} bytes JPEG in {watch.ElapsedMilliseconds} ms", thumb.Length > 100 && thumb[0] == 0xFF && thumb[1] == 0xD8);
+
+            string down = Path.Combine(Path.GetTempPath(), "streamy-gallery-down");
+            Directory.CreateDirectory(down);
+            await adb.PullAsync(serial, mine.Path, down);
+            Check("download", new FileInfo(Path.Combine(down, name)).Length == new FileInfo(local).Length);
+            Directory.Delete(down, recursive: true);
+
+            await adb.DeleteMediaAsync(serial, [mine]);
+            var after = await adb.QueryMediaAsync(serial);
+            var files = await adb.ListAsync(serial, folder);
+            Check("delete removes the entry and the file", after.All(m => m.Id != mine.Id) && files.All(f => f.Name != name));
+        }
+        finally
+        {
+            File.Delete(local);
+            // Leave no trace: the file (if delete failed) and the folder if it is empty now.
+            await adb.ShellAsync(serial, [$"rm -f {Core.Files.PhoneFiles.Quote(remote)}; rmdir {Core.Files.PhoneFiles.Quote(folder)} 2>/dev/null; true"]);
         }
         return ok;
     }
