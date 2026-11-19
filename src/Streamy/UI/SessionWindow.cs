@@ -1,6 +1,8 @@
 using Streamy.Core.Geometry;
 using Streamy.Core.Input;
 using Streamy.Core.Protocol;
+using Streamy.Audio;
+using Streamy.Services;
 using Streamy.Session;
 using Streamy.Video;
 
@@ -18,6 +20,8 @@ internal sealed class SessionWindow : Form
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 1000 };
     private readonly InputMapper _input = new();
     private D3DRenderer? _renderer;
+    private AudioPlayer? _player;
+    private ToolButton? _recordButton, _muteButton;
     private long _lastPresented;
     private Size _frameSize;
     private char _highSurrogate;
@@ -61,22 +65,110 @@ internal sealed class SessionWindow : Form
         decoder.FrameDecoded += _renderer.Signal;
         _renderer.Signal();
         _timer.Start();
+        StartAudio();
+    }
+
+    // ---- Audio, screenshots, recording --------------------------------------------------------------------
+
+    private async void StartAudio()
+    {
+        if (_session.Audio is not { } audio) return;
+        try
+        {
+            _player = await AudioPlayer.CreateAsync();
+            _player.Muted = AppSettings.Current.Muted;
+            _player.Volume = AppSettings.Current.Volume / 100f;
+            if (IsDisposed) { _player.Dispose(); _player = null; return; }
+            audio.Samples += _player.Write;
+            UpdateMuteButton();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "audio output");
+            _player = null; // no usable audio output; mirroring goes on without sound
+        }
+    }
+
+    private void ToggleMute()
+    {
+        if (_player is null) return;
+        _player.Muted = !_player.Muted;
+        AppSettings.Current.Muted = _player.Muted;
+        AppSettings.Current.Save();
+        UpdateMuteButton();
+    }
+
+    private void UpdateMuteButton()
+    {
+        if (_muteButton is null) return;
+        _muteButton.Text = _player is { Muted: true } ? Glyph.Muted : Glyph.Speaker;
+        _muteButton.Invalidate();
+    }
+
+    private void TakeScreenshot()
+    {
+        if (_session.Decoder?.Frames.CopyLatest() is not { } frame) return;
+        var dir = SaveFolders.Screenshots;
+        var file = Path.Combine(dir, $"{FileSafe(_session.DeviceName)} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.png");
+        using var bmp = FrameSnapshot.ToBitmap(frame);
+        bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+        try { Clipboard.SetImage(bmp); } catch (System.Runtime.InteropServices.ExternalException) { }
+        Flash($"Screenshot saved to {SaveFolders.Short(dir)} and copied");
+    }
+
+    private void ToggleRecording()
+    {
+        if (_session.Recorder is not null)
+        {
+            var rec = _session.StopRecording()!;
+            _recordButton!.ForeColor = Color.FromArgb(0xE6, 0xE6, 0xE6);
+            _recordButton.Invalidate();
+            Flash(rec.HasStarted ? $"Recording saved: {Path.GetFileName(rec.Path)}" : "Recording stopped before the first frame");
+            return;
+        }
+        var dir = SaveFolders.Recordings;
+        var file = Path.Combine(dir, $"{FileSafe(_session.DeviceName)} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.mp4");
+        _session.StartRecording(file);
+        _recordButton!.ForeColor = Color.FromArgb(0xE8, 0x3B, 0x3B);
+        _recordButton.Invalidate();
+        Flash($"Recording to {SaveFolders.Short(dir)}");
+    }
+
+    private static string FileSafe(string name)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+        return name.Length == 0 ? "Phone" : name;
+    }
+
+    private string? _flash;
+    private DateTime _flashUntil;
+
+    /// <summary>Shows a short message in the title bar for a few seconds.</summary>
+    private void Flash(string message)
+    {
+        _flash = message;
+        _flashUntil = DateTime.Now.AddSeconds(4);
+        UpdateTitle();
     }
 
     // ---- Toolbar ------------------------------------------------------------------------------------------
 
     private void BuildToolbar()
     {
-        _toolbar.Add("", "Power (right-click: turn the phone's screen off, keep mirroring)", _tips,
+        _toolbar.Add(Glyph.Power, "Power (right-click: turn the phone's screen off, keep mirroring)", _tips,
             () => PressKey(AndroidKeycode.Power), () => _session.Send(ControlMessage.SetDisplayPower(false)));
-        _toolbar.Add("", "Volume up", _tips, () => PressKey(AndroidKeycode.VolumeUp));
-        _toolbar.Add("", "Volume down", _tips, () => PressKey(AndroidKeycode.VolumeDown));
-        _toolbar.Add("", "Rotate", _tips, () => _session.Send(ControlMessage.RotateDevice()));
-        _toolbar.Add("", "Back (or right-click the screen)", _tips, () => PressKey(AndroidKeycode.Back));
-        _toolbar.Add("", "Home (or middle-click the screen)", _tips, () => PressKey(AndroidKeycode.Home));
-        _toolbar.Add("", "Recent apps", _tips, () => PressKey(AndroidKeycode.AppSwitch));
-        _toolbar.Add("", "Notifications (right-click: quick settings)", _tips,
+        _toolbar.Add(Glyph.VolumeUp, "Volume up", _tips, () => PressKey(AndroidKeycode.VolumeUp));
+        _toolbar.Add(Glyph.VolumeDown, "Volume down", _tips, () => PressKey(AndroidKeycode.VolumeDown));
+        _toolbar.Add(Glyph.Rotate, "Rotate", _tips, () => _session.Send(ControlMessage.RotateDevice()));
+        _toolbar.Add(Glyph.Back, "Back (or right-click the screen)", _tips, () => PressKey(AndroidKeycode.Back));
+        _toolbar.Add(Glyph.Home, "Home (or middle-click the screen)", _tips, () => PressKey(AndroidKeycode.Home));
+        _toolbar.Add(Glyph.Recents, "Recent apps", _tips, () => PressKey(AndroidKeycode.AppSwitch));
+        _toolbar.Add(Glyph.Notifications, "Notifications (right-click: quick settings)", _tips,
             () => _session.Send(ControlMessage.ExpandNotificationPanel()), () => _session.Send(ControlMessage.ExpandSettingsPanel()));
+        _toolbar.AddSeparator();
+        _toolbar.Add(Glyph.Camera, "Screenshot (saved and copied to the clipboard)", _tips, TakeScreenshot);
+        _recordButton = _toolbar.Add(Glyph.Record, "Record to MP4 (click again to stop)", _tips, ToggleRecording);
+        _muteButton = _toolbar.Add(Glyph.Speaker, "Mute the phone's sound on the PC", _tips, ToggleMute);
     }
 
     private void PressKey(AndroidKeycode key)
@@ -217,9 +309,10 @@ internal sealed class SessionWindow : Form
 
     private void UpdateTitle()
     {
-        if (_renderer is null) return;
-        long presented = _renderer.PresentedFrames;
-        Text = $"{_session.DeviceName} - {presented - _lastPresented} fps - Streamy";
+        long presented = _renderer?.PresentedFrames ?? 0;
+        string rec = _session.Recorder is { } r ? $" - REC {DateTime.Now - r.StartedAt:mm\\:ss}" : "";
+        string flash = _flash is not null && DateTime.Now < _flashUntil ? " - " + _flash : "";
+        Text = $"{_session.DeviceName} - {presented - _lastPresented} fps{rec}{flash} - Streamy";
         _lastPresented = presented;
     }
 
@@ -267,6 +360,8 @@ internal sealed class SessionWindow : Form
         base.OnFormClosed(e);
         if (_session.Decoder is { } decoder && _renderer is not null) decoder.FrameDecoded -= _renderer.Signal;
         _renderer?.Dispose();
+        if (_session.Audio is { } audio && _player is not null) audio.Samples -= _player.Write;
+        _player?.Dispose();
         await _session.DisposeAsync();
     }
 

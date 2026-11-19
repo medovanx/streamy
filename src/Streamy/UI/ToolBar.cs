@@ -17,9 +17,15 @@ internal sealed class ToolBar : Control
         SetStyle(ControlStyles.Selectable, false);
     }
 
+    private int _nextTop;
+
+    /// <summary>A thin gap between groups of buttons.</summary>
+    public void AddSeparator() => _nextTop += BarWidth / 3;
+
     public ToolButton Add(string glyph, string tip, ToolTip tips, Action onClick, Action? onRightClick = null)
     {
-        var b = new ToolButton(glyph) { Top = Controls.Count * BarWidth, Width = BarWidth, Height = BarWidth };
+        var b = new ToolButton(glyph) { Top = _nextTop, Width = BarWidth, Height = BarWidth };
+        _nextTop += BarWidth;
         b.MouseUp += (_, e) =>
         {
             if (!b.ClientRectangle.Contains(e.Location)) return;

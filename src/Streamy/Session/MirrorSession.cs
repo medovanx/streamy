@@ -5,6 +5,8 @@ using System.Threading.Channels;
 using Streamy.Core.Protocol;
 using Streamy.Core.Server;
 using Streamy.Services;
+using Streamy.Audio;
+using Streamy.Recording;
 using Streamy.Video;
 
 namespace Streamy.Session;
@@ -54,6 +56,36 @@ public sealed class MirrorSession : IAsyncDisposable
     public VideoDecoder? Decoder { get; private set; }
 
     private readonly PacketMerger _merger = new();
+
+    /// <summary>The audio decoder, when the phone sends audio. Subscribe to its Samples to play them.</summary>
+    public AudioDecoder? Audio { get; private set; }
+
+    private byte[]? _videoConfig, _audioConfig;
+    private Mp4Recorder? _recorder;
+
+    /// <summary>The recording in progress, if any.</summary>
+    public Mp4Recorder? Recorder => _recorder;
+
+    /// <summary>
+    /// Starts recording to an MP4 (or MKV). Asks the phone for a fresh key frame so the file starts at once
+    /// instead of at the encoder's next periodic key frame.
+    /// </summary>
+    public Mp4Recorder StartRecording(string path)
+    {
+        if (_recorder is not null) throw new InvalidOperationException("Already recording.");
+        var rec = new Mp4Recorder(path, VideoCodec, Width, Height, _videoConfig, Audio is null ? CodecId.Disabled : AudioCodec, _audioConfig);
+        Interlocked.Exchange(ref _recorder, rec);
+        Send(ControlMessage.ResetVideo());
+        return rec;
+    }
+
+    /// <summary>Finishes the recording. Returns it, or null if none was running.</summary>
+    public Mp4Recorder? StopRecording()
+    {
+        var rec = Interlocked.Exchange(ref _recorder, null);
+        rec?.Dispose();
+        return rec;
+    }
 
     private readonly System.Text.StringBuilder _log = new();
 
@@ -114,7 +146,11 @@ public sealed class MirrorSession : IAsyncDisposable
         {
             AudioCodec = await ReadCodecAsync(_audio, ct);
             if (AudioCodec is CodecId.Disabled or CodecId.Error) { _audio.Dispose(); _audio = null; } // e.g. Android < 11
-            else _readers.Add(Task.Run(() => PumpAsync(_audio, AudioStats, isVideo: false, _cts.Token)));
+            else
+            {
+                Audio = new AudioDecoder(AudioCodec);
+                _readers.Add(Task.Run(() => PumpAsync(_audio, AudioStats, isVideo: false, _cts.Token)));
+            }
         }
         if (_control is not null)
         {
@@ -199,8 +235,20 @@ public sealed class MirrorSession : IAsyncDisposable
             }
             if (payload.Length < h.PayloadSize) payload = new byte[h.PayloadSize];
             await ReadExactAsync(s, payload.AsMemory(0, h.PayloadSize), ct);
-            if (isVideo && Decoder is { } decoder && _merger.Merge(h, payload.AsSpan(0, h.PayloadSize)) is { } data)
-                decoder.Decode(data, h.Pts, h.IsKeyFrame);
+            var bytes = payload.AsSpan(0, h.PayloadSize);
+            if (h.IsConfig)
+            {
+                if (isVideo) _videoConfig = bytes.ToArray(); else _audioConfig = bytes.ToArray();
+            }
+            _recorder?.Write(isVideo, h, bytes);
+            if (isVideo)
+            {
+                if (Decoder is { } decoder && _merger.Merge(h, bytes) is { } data) decoder.Decode(data, h.Pts, h.IsKeyFrame);
+            }
+            else
+            {
+                Audio?.Feed(h, bytes);
+            }
             Interlocked.Increment(ref stats.Packets);
             Interlocked.Add(ref stats.Bytes, h.PayloadSize);
             if (h.IsKeyFrame) Interlocked.Increment(ref stats.KeyFrames);
@@ -247,7 +295,9 @@ public sealed class MirrorSession : IAsyncDisposable
         try { await Task.WhenAll(_readers).WaitAsync(TimeSpan.FromSeconds(2)); } catch { /* readers end with errors when their socket closes */ }
         if (_server is { HasExited: false }) { try { _server.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } }
         _server?.Dispose();
+        StopRecording();
         Decoder?.Dispose();
+        Audio?.Dispose();
         if (_localPort != 0) { try { await _adb.RemoveForwardAsync(_serial, _localPort); } catch (Exception) { } }
         _cts.Dispose();
     }

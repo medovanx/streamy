@@ -13,6 +13,18 @@ public sealed class AppSettings
     /// <summary>Show a dot on the phone's screen wherever it is touched, while a session runs.</summary>
     public bool ShowTouches { get; set; }
 
+    /// <summary>Mute the phone's sound on the PC.</summary>
+    public bool Muted { get; set; }
+
+    /// <summary>Playback volume on the PC, 0 to 100.</summary>
+    public int Volume { get; set; } = 100;
+
+    /// <summary>Folder for screenshots; null means Pictures\Streamy.</summary>
+    public string? ScreenshotFolder { get; set; }
+
+    /// <summary>Folder for recordings; null means Videos\Streamy.</summary>
+    public string? RecordingFolder { get; set; }
+
     public static AppSettings Current { get; } = Load();
 
     private static AppSettings Load()

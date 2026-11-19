@@ -50,6 +50,23 @@ public sealed class FrameExchange
         }
     }
 
+    /// <summary>A copy of the newest decoded picture (for screenshots), or null before the first frame.</summary>
+    public VideoFrame? CopyLatest()
+    {
+        lock (_gate) // Publish waits meanwhile, so the decoder never writes into the frame being copied
+        {
+            var src = _fresh ? _frames[_ready] : _frames[_read];
+            if (src.Width == 0) src = _frames[_ready].Width > 0 ? _frames[_ready] : _frames[_read];
+            if (src.Width == 0) return null;
+            var copy = new VideoFrame { Color = src.Color };
+            copy.EnsureSize(src.Width, src.Height);
+            src.Y.CopyTo(copy.Y, 0);
+            src.U.CopyTo(copy.U, 0);
+            src.V.CopyTo(copy.V, 0);
+            return copy;
+        }
+    }
+
     /// <summary>The newest frame if one arrived since the last call, else null. Valid until the next call.</summary>
     public VideoFrame? Take()
     {
