@@ -42,16 +42,33 @@ internal static class Glyph
         return probe.Name == "Segoe Fluent Icons" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
     }
 
-    /// <summary>Draws a glyph as a small transparent image for buttons and menus.</summary>
-    public static Bitmap Image(string glyph, Color color, int size = 16)
+    /// <summary>
+    /// Draws a glyph as a small transparent image for buttons and menus. Icon glyphs sit at different heights inside
+    /// the font's line box, so the glyph's actual outline is measured and its middle placed on the image's middle
+    /// (snapped to whole pixels to stay sharp). Every icon then lines up with the button text the same way.
+    /// </summary>
+    /// <param name="gapAfter">Empty pixels to the right, so text placed after the image does not touch it.</param>
+    public static Bitmap Image(string glyph, Color color, int size = 16, int gapAfter = 0)
     {
-        var bmp = new Bitmap(size, size);
+        var bmp = new Bitmap(size + gapAfter, size);
         using var g = Graphics.FromImage(bmp);
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-        using var font = new Font(FontName, size * 0.72f, GraphicsUnit.Pixel);
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var family = new FontFamily(FontName);
+        using var path = new System.Drawing.Drawing2D.GraphicsPath();
+        path.AddString(glyph, family, (int)FontStyle.Regular, size * 0.8f, PointF.Empty, StringFormat.GenericTypographic);
+        var ink = path.GetBounds();
+        if (ink.Width > 0 && ink.Height > 0)
+        {
+            float dx = MathF.Round(size / 2f - (ink.X + ink.Width / 2f));
+            // One pixel per 16 above the middle: button text is centred by its line box (descenders included), so
+            // its letters sit a little above the middle, and the icon should line up with the letters.
+            float dy = MathF.Round(size / 2f - (ink.Y + ink.Height / 2f) - size / 16f);
+            using var move = new System.Drawing.Drawing2D.Matrix();
+            move.Translate(dx, dy);
+            path.Transform(move);
+        }
         using var brush = new SolidBrush(color);
-        using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        g.DrawString(glyph, font, brush, new RectangleF(0, 0, size, size + 1), format);
+        g.FillPath(brush, path);
         return bmp;
     }
 
@@ -62,7 +79,7 @@ internal static class Glyph
     public static void Apply(ButtonBase button, string glyph)
     {
         int size = (int)Math.Round(16 * button.DeviceDpi / 96.0);
-        button.Image = Image(glyph, button.ForeColor, size);
+        button.Image = Image(glyph, button.ForeColor, size, gapAfter: (int)Math.Round(5 * button.DeviceDpi / 96.0));
         button.ImageAlign = ContentAlignment.MiddleCenter;
         button.TextAlign = ContentAlignment.MiddleCenter;
         button.TextImageRelation = TextImageRelation.ImageBeforeText;

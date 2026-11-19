@@ -3,6 +3,11 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-11-20
+
+### Fixed
+- Button icons line up with their text: each icon is centred by its actual outline (icons sit at different heights in the icon font, so some looked low), set level with the letters, and has a small gap before the text.
+
 ## [1.3.0] - 2026-11-20
 
 ### Added
@@ -89,6 +94,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.3.1]: https://github.com/medovanx/streamy/releases/tag/v1.3.1
 [1.3.0]: https://github.com/medovanx/streamy/releases/tag/v1.3.0
 [1.2.0]: https://github.com/medovanx/streamy/releases/tag/v1.2.0
 [1.1.0]: https://github.com/medovanx/streamy/releases/tag/v1.1.0
