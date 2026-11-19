@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 using Streamy.Core.Protocol;
 using Streamy.Core.Server;
 using Streamy.Services;
@@ -21,16 +22,13 @@ public sealed class StreamStats
 /// connects the video, audio and control sockets in that order. Each session has its own SCID and local port,
 /// so several phones (or several sessions on one phone) can run side by side.
 /// </summary>
-/// <remarks>
-/// 0.1.0 reads and counts the media packets; decoding and rendering come in the next milestone.
-/// </remarks>
 public sealed class MirrorSession : IAsyncDisposable
 {
     private readonly AdbClient _adb;
     private readonly string _serial;
     private readonly ServerOptions _options;
     private readonly CancellationTokenSource _cts = new();
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly Channel<byte[]> _outgoing = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
     private Process? _server;
     private int _localPort;
     private Socket? _video, _audio, _control;
@@ -95,6 +93,11 @@ public sealed class MirrorSession : IAsyncDisposable
         if (_options.Audio) { _audio = await ConnectAsync(first, ct); first = false; }
         if (_options.Control) { _control = await ConnectAsync(first, ct); }
 
+        // The sockets are open; the tunnel is no longer needed. Removing it now means even a killed Streamy
+        // leaves no forward behind (scrcpy does the same).
+        await _adb.RemoveForwardAsync(_serial, _localPort);
+        _localPort = 0;
+
         var firstSocket = _video ?? _audio ?? _control ?? throw new InvalidOperationException("Nothing to stream");
         var name = new byte[ScrcpyProtocol.DeviceNameFieldLength];
         await ReadExactAsync(firstSocket, name, ct);
@@ -114,18 +117,39 @@ public sealed class MirrorSession : IAsyncDisposable
             else _readers.Add(Task.Run(() => PumpAsync(_audio, AudioStats, isVideo: false, _cts.Token)));
         }
         if (_control is not null)
+        {
             _readers.Add(Task.Run(() => ControlReaderAsync(_control, _cts.Token)));
+            _ = Task.Run(() => ControlWriterAsync(_control, _cts.Token));
+        }
 
         _ = Task.WhenAll(_readers).ContinueWith(t => Ended?.Invoke(t.Exception?.InnerException), TaskScheduler.Default);
     }
 
-    /// <summary>Sends one serialized control message. Safe from any thread.</summary>
-    public async Task SendAsync(byte[] message)
+    /// <summary>Queues one serialized control message. Safe from any thread; messages go out in call order.</summary>
+    public void Send(byte[] message)
     {
-        if (_control is null) return;
-        await _sendLock.WaitAsync();
-        try { await _control.SendAsync(message, SocketFlags.None); }
-        finally { _sendLock.Release(); }
+        if (_control is not null) _outgoing.Writer.TryWrite(message);
+    }
+
+    public void Send(IEnumerable<byte[]> messages)
+    {
+        foreach (var m in messages) Send(m);
+    }
+
+    private async Task ControlWriterAsync(Socket s, CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var msg in _outgoing.Reader.ReadAllAsync(ct))
+            {
+                var mem = msg.AsMemory();
+                while (mem.Length > 0) mem = mem[await s.SendAsync(mem, SocketFlags.None, ct)..];
+            }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
+        {
+            // The session is ending; the readers report why.
+        }
     }
 
     private async Task<Socket> ConnectAsync(bool expectDummyByte, CancellationToken ct)
@@ -216,6 +240,7 @@ public sealed class MirrorSession : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _cts.Cancel();
+        _outgoing.Writer.TryComplete();
         _video?.Dispose();
         _audio?.Dispose();
         _control?.Dispose();

@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: draft for 1.0. Last updated 2026-11-19 (0.2.0).
+Status: draft for 1.0. Last updated 2026-11-19 (0.3.0).
 
 ## 1. Purpose
 
@@ -43,10 +43,10 @@ the clipboard between the two, and handles several phones at once.
 
 ### 3.3 Input
 
-- FR-20 Mouse as finger: click, drag, long press; wheel scrolls.
-- FR-21 Right click = Back, middle click = Home; toolbar buttons for Back, Home, Recents, Power, Volume, Rotate, Notifications.
-- FR-22 Keyboard: text is sent as text (so the phone's keyboard layout does not matter, Arabic works), special keys as key events.
-- FR-23 Pinch to zoom with Ctrl + drag.
+- FR-20 Mouse as finger: click, drag, long press; wheel scrolls. **Done in 0.3.0.**
+- FR-21 Right click = Back, middle click = Home; toolbar buttons for Back, Home, Recents, Power, Volume, Rotate, Notifications. **Done in 0.3.0.**
+- FR-22 Keyboard: text is sent as text (so the phone's keyboard layout does not matter, Arabic works), special keys as key events. **Done in 0.3.0.**
+- FR-23 Pinch to zoom with Ctrl + drag. **Done in 0.3.0.**
 
 ### 3.4 Audio and recording
 
@@ -57,7 +57,7 @@ the clipboard between the two, and handles several phones at once.
 ### 3.5 Files and clipboard
 
 - FR-40 Drop an APK on the window to install it; drop any other file to copy it to `/sdcard/Download` and scan it into the gallery.
-- FR-41 Two-way clipboard sync: phone to PC automatically, PC to phone on Ctrl+V. **Phone to PC is received in 0.1.0; PC side comes with input.**
+- FR-41 Two-way clipboard sync: phone to PC automatically, PC to phone on Ctrl+V. **Done in 0.3.0.**
 
 ### 3.6 Several devices
 
@@ -84,9 +84,9 @@ the clipboard between the two, and handles several phones at once.
 | --- | --- |
 | 0.1.0 | Repo, device list, pair/connect, session handshake and stream statistics, CI and releases |
 | 0.2.0 | Video decoding and display (FR-11, FR-12). Done. |
-| 0.3.0 | Mouse and keyboard input, toolbar (FR-20 to FR-23) |
+| 0.3.0 | Mouse and keyboard input, toolbar, clipboard (FR-20 to FR-23, FR-41). Done. |
 | 0.4.0 | Audio playback, recording, screenshots (FR-30 to FR-32) |
-| 0.5.0 | Files, clipboard, QR pairing, remembered devices (FR-4 to FR-6, FR-40, FR-41) |
+| 0.5.0 | Files, QR pairing, remembered devices (FR-4 to FR-6, FR-40) |
 | 0.6.0 | Settings, Arabic, updater (FR-13, FR-14, FR-60 to FR-62) |
 | 1.0.0 | Multi-device polish (FR-51), a signed release checked on several phones |
 
