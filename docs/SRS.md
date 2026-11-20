@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: 1.4.0. Last updated 2026-11-20.
+Status: 1.4.1. Last updated 2026-11-20.
 
 ## 1. Purpose
 
@@ -103,6 +103,7 @@ All are done in 1.0.0 unless marked otherwise.
 | 1.3.0 | Gallery |
 | 1.3.1 | Icons centred with their text |
 | 1.4.0 | Viewer, drag-select, details panel, places |
+| 1.4.1 | Drag-select selects while dragging |
 
 ## 6. Later
 

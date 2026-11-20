@@ -3,6 +3,11 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-11-20
+
+### Fixed
+- Drag-select in the gallery now selects as you drag instead of when you let go: the grid repaints at once and the details panel catches up every 150 ms instead of being rebuilt on every mouse move.
+
 ## [1.4.0] - 2026-11-20
 
 ### Added
@@ -103,6 +108,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.4.1]: https://github.com/medovanx/streamy/releases/tag/v1.4.1
 [1.4.0]: https://github.com/medovanx/streamy/releases/tag/v1.4.0
 [1.3.1]: https://github.com/medovanx/streamy/releases/tag/v1.3.1
 [1.3.0]: https://github.com/medovanx/streamy/releases/tag/v1.3.0

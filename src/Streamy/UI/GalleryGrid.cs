@@ -36,11 +36,12 @@ internal sealed class GalleryGrid : Panel
         SetStyle(ControlStyles.Selectable | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
         TabStop = true;
         _autoScroll.Tick += (_, _) => AutoScrollTick();
+        _notify.Tick += (_, _) => { _notify.Stop(); SelectionChanged?.Invoke(); };
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) _autoScroll.Dispose();
+        if (disposing) { _autoScroll.Dispose(); _notify.Dispose(); }
         base.Dispose(disposing);
     }
 
@@ -231,6 +232,9 @@ internal sealed class GalleryGrid : Panel
     private Point _marqueeEnd;          // content coordinates
     private HashSet<long> _marqueeBase = [];
     private readonly System.Windows.Forms.Timer _autoScroll = new() { Interval = 30 };
+    // While dragging, the box and ticks repaint at once but the window (details panel, buttons) hears about the
+    // selection at most this often, so rebuilding the details never holds up the drag.
+    private readonly System.Windows.Forms.Timer _notify = new() { Interval = 150 };
 
     private Point ToContent(Point p) => new(p.X, p.Y - AutoScrollPosition.Y);
 
@@ -268,6 +272,7 @@ internal sealed class GalleryGrid : Panel
             _marquee = false;
             _autoScroll.Stop();
             Invalidate();
+            if (_notify.Enabled) { _notify.Stop(); SelectionChanged?.Invoke(); }
         }
         _pressAt = null;
     }
@@ -290,8 +295,7 @@ internal sealed class GalleryGrid : Panel
     private void ApplyMarquee()
     {
         var box = MarqueeRect;
-        _selected.Clear();
-        _selected.UnionWith(_marqueeBase);
+        var next = new HashSet<long>(_marqueeBase);
         // Only rows the box spans can intersect it.
         int firstRow = Math.Max(0, (box.Top - Gap) / (TileSize + Gap)), lastRow = Math.Min(Rows - 1, box.Bottom / (TileSize + Gap));
         for (int row = firstRow; row <= lastRow; row++)
@@ -303,12 +307,18 @@ internal sealed class GalleryGrid : Panel
                 var tile = new Rectangle(Gap + col * (TileSize + Gap), Gap + row * (TileSize + Gap), TileSize, TileSize);
                 if (tile.IntersectsWith(box))
                 {
-                    _selected.Add(_items[i].Id);
+                    next.Add(_items[i].Id);
                     _focus = i;
                 }
             }
         }
-        Changed();
+        // Repaint now (the box moved even when the selection did not); tell the window later.
+        Invalidate();
+        Update();
+        if (next.SetEquals(_selected)) return;
+        _selected.Clear();
+        _selected.UnionWith(next);
+        if (!_notify.Enabled) _notify.Start();
     }
 
     protected override void OnMouseDown(MouseEventArgs e)

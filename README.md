@@ -297,8 +297,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.4.1
-git push origin v1.4.1
+git tag v1.4.2
+git push origin v1.4.2
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds
