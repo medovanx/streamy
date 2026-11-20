@@ -301,6 +301,7 @@ internal sealed class MainWindow : Form
         var files = menu.Items.Add("Browse files", null, (_, _) => OpenFiles());
         var gallery = menu.Items.Add("Gallery", null, (_, _) => OpenGallery());
         var apps = menu.Items.Add("Apps", null, (_, _) => OpenApps());
+        var console = menu.Items.Add("Log and shell", null, (_, _) => { if (Selected is { Device: { IsReady: true } d }) FileManager.OpenConsole(d.Serial, d.DisplayName); });
         var wifi = menu.Items.Add("Switch to Wi-Fi", null, async (_, _) => await SwitchToWifiAsync());
         var disconnect = menu.Items.Add("Disconnect", null, async (_, _) => await DisconnectAsync());
         var forget = menu.Items.Add("Forget", null, (_, _) => Forget());
@@ -310,7 +311,7 @@ internal sealed class MainWindow : Form
             if (row is null) { e.Cancel = true; return; }
             mirror.Text = row.Device is null ? "Connect" : "Mirror";
             mirror.Enabled = row.Device is null or { IsReady: true };
-            files.Visible = gallery.Visible = apps.Visible = row.Device is { IsReady: true };
+            files.Visible = gallery.Visible = apps.Visible = console.Visible = row.Device is { IsReady: true };
             wifi.Visible = row.Device is { IsReady: true, IsWireless: false };
             disconnect.Visible = row.Device is { IsWireless: true };
             forget.Visible = AppSettings.Current.SavedDevices.Any(s => s.Endpoint == row.Key);

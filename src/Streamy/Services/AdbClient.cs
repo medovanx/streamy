@@ -47,6 +47,17 @@ public sealed class AdbClient(string adbPath)
         return p;
     }
 
+    /// <summary>Like <see cref="Start"/>, with the standard input open for writing (an interactive shell).</summary>
+    public Process StartInteractive(IEnumerable<string> args, string? serial = null)
+    {
+        var psi = CreateStartInfo(args, serial);
+        psi.RedirectStandardInput = true;
+        psi.StandardInputEncoding = new UTF8Encoding(false);
+        var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        p.Start();
+        return p;
+    }
+
     public async Task<IReadOnlyList<AdbDevice>> DevicesAsync(CancellationToken ct = default) =>
         AdbParsers.ParseDevices((await RunAsync(["devices", "-l"], timeout: TimeSpan.FromSeconds(10), ct: ct)).Output);
 

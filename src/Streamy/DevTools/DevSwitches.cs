@@ -30,6 +30,7 @@ internal static class DevSwitches
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
             ["--map-test", var png] => MapTest(png),
+            ["--console-test", var serial, var outFile] => ConsoleTest(serial, outFile),
             ["--notify-test", var serial, var outFile] => Report(outFile, sb => NotifyTestAsync(sb, serial)),
             ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
             ["--drag-test", var serial, var outFile] => Report(outFile, sb => DragTestAsync(sb, serial)),
@@ -384,6 +385,27 @@ internal static class DevSwitches
         bool ok = all.Count(l => l.Contains("Notification test at " + stamp, StringComparison.Ordinal)) == 1;
         sb.AppendLine($"{(ok ? "ok  " : "FAIL")} the test notification was reported once ({before} others before it, none expected from the first round)");
         return ok;
+    }
+
+    /// <summary>Opens the log and shell window off screen, checks log lines arrive and that the shell keeps its folder.</summary>
+    private static int ConsoleTest(string serial, string outFile)
+    {
+        var sb = new StringBuilder();
+        void Pump(int ms) { var until = DateTime.Now.AddMilliseconds(ms); while (DateTime.Now < until) { Application.DoEvents(); Thread.Sleep(20); } }
+        using var w = new UI.ConsoleWindow(serial, "Test") { StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000), ShowInTaskbar = false };
+        w.Show();
+        Pump(4000);
+        w.Type("cd /sdcard/Download");
+        w.Type("pwd; echo marker-$((6*7))");
+        Pump(2500);
+        var text = w.ShellText;
+        bool logOk = w.LogLines > 100, shellOk = text.Contains("/sdcard/Download", StringComparison.Ordinal) && text.Contains("marker-42", StringComparison.Ordinal);
+        sb.AppendLine($"{(logOk ? "ok  " : "FAIL")} log: {w.LogLines:N0} lines in 4 s");
+        sb.AppendLine($"{(shellOk ? "ok  " : "FAIL")} shell kept the folder and ran: {text.Replace(Environment.NewLine, " / ").Replace(((char)10).ToString(), " / ").Trim()}");
+        w.Close();
+        sb.AppendLine(logOk && shellOk ? "result: ok" : "result: failed");
+        File.WriteAllText(outFile, sb.ToString());
+        return logOk && shellOk ? 0 : 1;
     }
 
     private static int RenderIcon(string dir)

@@ -9,6 +9,8 @@ internal static class FileManager
 
     public static void OpenApps(string serial, string deviceName) => Show("apps:" + serial, () => new AppsWindow(serial, deviceName));
 
+    public static void OpenConsole(string serial, string deviceName) => Show("console:" + serial, () => new ConsoleWindow(serial, deviceName));
+
     public static void OpenGallery(string serial, string deviceName) => Show("gallery:" + serial, () => new GalleryWindow(serial, deviceName));
 
     private static void Show(string key, Func<Form> create)

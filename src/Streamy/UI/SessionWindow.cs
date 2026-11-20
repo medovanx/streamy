@@ -255,6 +255,7 @@ internal sealed class SessionWindow : Form
         _toolbar.Add(Glyph.Folder, "Browse the phone's files", _tips, () => FileManager.Open(_session.Serial, _session.DeviceName));
         _toolbar.Add(Glyph.Gallery, "Photos and videos", _tips, () => FileManager.OpenGallery(_session.Serial, _session.DeviceName));
         _toolbar.Add(Glyph.Apps, "Apps: open one here or in its own window, manage them", _tips, () => FileManager.OpenApps(_session.Serial, _session.DeviceName));
+        _toolbar.Add(Glyph.Terminal, "The phone's log and a shell (for developers)", _tips, () => FileManager.OpenConsole(_session.Serial, _session.DeviceName));
         _toolbar.Add(Glyph.Camera, "Screenshot (saved and copied to the clipboard)", _tips, TakeScreenshot);
         _recordButton = _toolbar.Add(Glyph.Record, "Record to MP4 (click again to stop)", _tips, ToggleRecording);
         _muteButton = _toolbar.Add(Glyph.Speaker, "Mute the phone's sound on the PC", _tips, ToggleMute);
