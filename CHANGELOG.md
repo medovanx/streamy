@@ -3,6 +3,19 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-11-20
+
+### Added
+- Apps: every app with its icon, version and size. Open one on the phone, or in its own window on the PC on a separate virtual display, so the phone's screen stays free. Force stop, clear data, uninstall and back up the APK (a folder of APKs for split apps). Names, icons and sizes come from a small phone-side helper run with app_process, like scrcpy-server.
+- Gallery backup: copies every photo and video to a PC folder, keeping the phone's folders and dates, and later only what is new or was cut short, with a progress window (size, speed, time left, Cancel).
+- Drag photos and videos out of the gallery to Explorer, the desktop or another app; they are copied from the phone at the drop.
+- Map of where photos were taken, on OpenStreetMap tiles (opt-in, cached): nearby photos share a pin with the newest one and a count; clicking a pin shows them in the gallery.
+- Phone windows show the battery level, charging and temperature in the title, and warn when the battery runs low.
+- Reconnect by itself: when Wi-Fi drops or the cable comes out, the phone's window stays and a new session opens in its place once the phone is back (up to two minutes). On by default; a setting turns it off.
+- Phone notifications as Windows notifications, read with dumpsys on the phone (opt-in in Settings). Clicking one opens the phone's window.
+- Log and shell window: logcat as it happens with level and text filters, pause, copy and save; and a shell that keeps its folder and variables between commands.
+- Developer switches: `--apps`, `--backup-test`, `--drag-test`, `--notify-test`, `--console-test`, `--map-test`.
+
 ## [1.4.1] - 2026-11-20
 
 ### Fixed
@@ -108,6 +121,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.5.0]: https://github.com/medovanx/streamy/releases/tag/v1.5.0
 [1.4.1]: https://github.com/medovanx/streamy/releases/tag/v1.4.1
 [1.4.0]: https://github.com/medovanx/streamy/releases/tag/v1.4.0
 [1.3.1]: https://github.com/medovanx/streamy/releases/tag/v1.3.1

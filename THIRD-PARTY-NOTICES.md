@@ -20,6 +20,10 @@ The exe also contains these .NET libraries, compiled in:
 | [NAudio](https://github.com/naudio/NAudio) 3.3.0 (Core, Wasapi) | MIT |
 | [QRCoder](https://github.com/codebude/QRCoder) 1.8.1 | MIT |
 
+The gallery's map shows tiles from [OpenStreetMap](https://www.openstreetmap.org/copyright), © OpenStreetMap
+contributors, data under the Open Database License; the credit is drawn on the map. Tiles are downloaded at run time,
+not shipped.
+
 `Streamy.Core` embeds data from [GeoNames](https://www.geonames.org) (`cities15000` and `countryInfo`), reduced to each
 place's name, country and position, under the [Creative Commons Attribution 4.0 License](https://creativecommons.org/licenses/by/4.0/).
 

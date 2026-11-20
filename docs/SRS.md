@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: 1.4.1. Last updated 2026-11-20.
+Status: 1.5.0. Last updated 2026-11-20.
 
 ## 1. Purpose
 
@@ -66,6 +66,14 @@ All are done in 1.0.0 unless marked otherwise.
 - FR-40 Drop an APK to install it; drop any other file to copy it to `/sdcard/Download` and scan it into the gallery.
 - FR-41 Two-way clipboard: phone to PC automatically, PC to phone on Ctrl+V.
 - FR-43 Gallery: photos and videos by album from Android's MediaStore (`content query`), phone-made thumbnails (`content read …/thumbnail`, so HEIC and video need no PC codecs) cached on disk, open, download, upload with media scan, delete through MediaStore. **Done in 1.3.0.**
+- FR-48 Apps: list with icons, labels, versions and sizes from a phone-side helper (app_process, shell user); open on the phone or on a new virtual display in its own window (scrcpy new_display + start_app); force stop, clear data, uninstall, APK backup. **Done in 1.5.0.**
+- FR-49 Gallery backup to a PC folder, mirroring the phone's folders, incremental by name and size, dates kept. **Done in 1.5.0.**
+- FR-50 Drag gallery items out to Explorer (OLE data object, files copied at the drop). **Done in 1.5.0.**
+- FR-51 Map of located items on OpenStreetMap tiles, opt-in, cached, with clustering and click-to-filter. **Done in 1.5.0.**
+- FR-52 Battery and temperature in the phone window's title. **Done in 1.5.0.**
+- FR-53 Automatic reconnect of a dropped session (USB or Wi-Fi), up to two minutes. **Done in 1.5.0.**
+- FR-54 Phone notifications as Windows notifications from dumpsys (the shell may no longer read the notification service). **Done in 1.5.0.**
+- FR-55 Logcat viewer and phone shell. **Done in 1.5.0.**
 - FR-44 Built-in viewer: swipe through photos and videos inside the gallery (drag, wheel, keys); photos decoded with Windows Imaging (EXIF orientation, HEIC via the HEIF extension, phone thumbnail as a fallback); videos played with Windows.Media.Playback in frame-server mode into Direct3D 11, with play/pause, seek and mute. **Done in 1.4.0.**
 - FR-45 Drag-to-select in the gallery grid, with auto-scroll. **Done in 1.4.0.**
 - FR-46 Metadata panel for the selection (MediaStore columns read per item without naming columns older Android lacks). **Done in 1.4.0.**
@@ -104,6 +112,7 @@ All are done in 1.0.0 unless marked otherwise.
 | 1.3.1 | Icons centred with their text |
 | 1.4.0 | Viewer, drag-select, details panel, places |
 | 1.4.1 | Drag-select selects while dragging |
+| 1.5.0 | Apps and app windows, backup, drag out, map, battery, reconnect, notifications, log and shell |
 
 ## 6. Later
 

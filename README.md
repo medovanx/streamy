@@ -34,14 +34,20 @@ side by side, each in its own window.
 - **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses (Arabic, accents and emoji go through the phone's clipboard and are pasted), and shortcuts like Ctrl+A or Ctrl+C work.
 - **Sound.** The phone's audio plays on the PC (Android 11+), kept in sync with the picture, with mute and volume.
 - **Record and capture.** Record the screen and sound to MP4 without re-encoding, or save a full-resolution screenshot that is also copied to the clipboard.
-- **Gallery.** The phone's photos and videos by album and by place, as a thumbnail grid (HEIC and videos included). Drag across thumbnails to select several. A side panel shows each item's details: date, size, resolution, camera settings, where it was taken. Download, upload or delete.
+- **Gallery.** The phone's photos and videos by album and by place, as a thumbnail grid (HEIC and videos included). Drag across thumbnails to select several. A side panel shows each item's details: date, size, resolution, camera settings, where it was taken. Download, upload or delete, or drag photos straight out to Explorer.
+- **Gallery backup.** One click copies every photo and video to a PC folder, keeping the phone's folders and dates. The next backup copies only what is new.
+- **Map.** Where your photos were taken, as pins with the newest photo on an OpenStreetMap map. Click a pin to see its photos (opt-in: the map tiles come from OpenStreetMap).
 - **Built-in viewer.** Open a photo or video and swipe through the album like on the phone: drag sideways, scroll the wheel or press the arrow keys. Videos play right there, with play/pause, a seek bar and mute.
 - **File manager.** Browse the phone's storage, download files and folders to the PC, upload by button or by dropping them from Explorer, create folders, rename and delete. Double-click a file to open it on the PC.
+- **Apps.** Every app with its icon, version and size. Open one on the phone, or in **its own window on the PC** on a separate display, so the phone's screen stays free. Force stop, clear data, uninstall, or back up the APK.
 - **Files and apps.** Drop APKs on a phone's window to install or update them; drop any other file to put it in the phone's Download folder, where Gallery and Files see it at once.
+- **Notifications on the PC.** The phone's new notifications show as Windows notifications; click one to open the phone's window (opt-in, in Settings).
+- **Log and shell.** The phone's logcat as it happens, with level and text filters, and a shell that keeps its folder between commands.
 - **Clipboard.** Copy on the phone, paste on the PC. Ctrl+V in the window pastes the PC's clipboard on the phone.
-- **Phone details.** Android version, model, build, CPU, GPU, RAM, storage, battery and screen of the selected phone, beside the device list.
+- **Phone details.** Android version, model, build, CPU, GPU, RAM, storage, battery and screen of the selected phone, beside the device list. Each phone's window shows its battery and temperature in the title.
 - **Toolbar.** Power, volume, rotate, Back, Home, Recent apps, notifications, gallery, files, screenshot, record, mute, fullscreen and keep on top, beside each phone's screen.
 - **Wi-Fi without cables.** Pair with a QR code or the six-digit code from Android's Wireless debugging, connect by address, or move a USB phone to Wi-Fi in one click. Wi-Fi phones are remembered and reconnect by themselves.
+- **Reconnects by itself.** When Wi-Fi drops or the cable comes out, the phone's window stays and its session comes back as soon as the phone does.
 - **Several phones.** One window per phone, or open all of them with Mirror all.
 - **Show touches.** A dot appears on the phone wherever it is touched, for demos and recordings. The phone's own setting comes back afterwards.
 - **One exe.** adb, the scrcpy server and FFmpeg are built in. No Android SDK, no .NET install, no account. Updates itself from GitHub Releases, with a progress bar.
@@ -116,8 +122,29 @@ Some phones (Xiaomi, OPPO and others) block mouse and keyboard input from the PC
 | F11 | Fullscreen on and off |
 
 Toolbar, top to bottom: Power (right-click turns only the phone's screen off and keeps mirroring), Volume up, Volume down,
-Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Gallery, Files, Screenshot, Record, Mute, Fullscreen
-and Keep on top (right-click keeps every phone's window on top).
+Rotate, Back, Home, Recent apps, Notifications (right-click opens quick settings), Files, Gallery, Apps, Log and shell, Screenshot,
+Record, Mute, Fullscreen and Keep on top (right-click keeps every phone's window on top).
+
+The title shows the frame rate and the phone's battery and temperature, refreshed every 30 seconds. If the connection
+drops, the title says so and the window keeps the last picture; when the phone is back (up to two minutes later), a new
+session opens in its place. Turn this off in Settings.
+
+## Apps
+
+Open it with **Apps** in the main window, on a phone's right-click menu, or from its toolbar. It lists the apps with a home
+screen icon (or all installed apps, or system apps too), with their icons, version, size and last update. Type to search.
+
+| Action | How |
+| --- | --- |
+| Open on the phone | Double-click, Enter or **Open** |
+| Open in its own window | **Open in window**: the app starts on a separate display that only Streamy shows, so the phone's own screen stays free. Closing the window closes the app |
+| Force stop | **Force stop** |
+| Clear data | **Clear data**, after a confirmation |
+| Uninstall | **Uninstall**, after a confirmation (apps that came with the phone cannot be) |
+| Back up the APK | **Back up APK**: one `.apk`, or a folder of them for apps split into several |
+
+Android does not let adb read app names, icons or sizes, so Streamy brings a small helper (`helper/`, 5 KB) that runs on
+the phone the same way the scrcpy server does, prints them and exits. Icons are kept in `%LOCALAPPDATA%\Streamy\icons`.
 
 ## Gallery
 
@@ -133,7 +160,10 @@ and the details of the selection on the right.
 | Filter by place | Pick a place under **Places** |
 | Download | Select, **Download**, pick a folder |
 | Upload | **Upload** puts photos and videos into the open album's folder (`Pictures/Streamy` for the first two) and the phone indexes them at once |
+| Drag to Explorer | Drag a selected photo out of the window (the whole selection comes along) and drop it in a folder, on the desktop or in another app. Dragging from an unselected photo draws the selection box instead |
 | Delete | **Delete** or the Delete key, after a confirmation. Deleted items do not go to the phone's trash |
+| Back up | **Back up** copies every photo and video to a folder (`Pictures\Streamy backup\PHONE` unless you pick another; right-click the button to change it). The phone's folders are kept (`DCIM\Camera`, `Pictures\Screenshots`) with the original dates, and later backups copy only what is new |
+| Map | **Map** shows the photos and videos with a location on a map; click a pin to see them in the gallery |
 
 **Details panel:** date taken and added, album, type, size, resolution in megapixels, camera settings (aperture, shutter,
 ISO), rotation, the app that made it, favourite, the place and its coordinates with **Show on map**, and the path on the
@@ -149,6 +179,10 @@ closes. Full-size copies are kept in `%LOCALAPPDATA%\Streamy\media` (up to 2 GB)
 camera videos write) in the background the first time the gallery opens; this takes about a minute for 8,000 items
 over USB and is remembered afterwards. Coordinates are named offline with the [GeoNames](https://www.geonames.org)
 city list built into Streamy.
+
+**Map:** the first time, Streamy explains that the map is drawn with tiles from OpenStreetMap and asks before loading
+any. Tiles are kept in `%LOCALAPPDATA%\Streamy\tiles`. Nearby photos share a pin showing the newest one and a count; drag
+to move, scroll or double-click to zoom, Home to see everything again.
 
 Thumbnails are made by the phone, about one per second each, eight at a time, visible ones first. Each is kept in
 `%LOCALAPPDATA%\Streamy\thumbs`, so an album opens straight away the next time.
@@ -177,13 +211,24 @@ folders; private app data (`/data`) says "Permission denied".
 Screenshots go to `Pictures\Streamy` and recordings to `Videos\Streamy`, or the folders you choose in Settings. If Windows'
 Controlled Folder Access blocks those folders, Streamy saves to `%USERPROFILE%\Streamy` instead and says so.
 
+## Notifications, log and shell
+
+**Notifications:** turn on "Show the phone's notifications on this PC" in Settings. A Streamy icon appears in the
+notification area and new notifications from the phone show as Windows notifications with the app's name; clicking one
+opens that phone's window. Running services and media players are left out. Streamy reads them with
+`dumpsys notification` in a loop on the phone every five seconds; nothing is installed and nothing leaves your PC.
+
+**Log and shell** (right-click a phone, or the toolbar's terminal button): the Log tab streams `logcat` with the last
+5,000 lines, coloured by level, with a level and text filter (tag, message or process id), pause, copy and save. The
+Shell tab runs commands on the phone in one shell, so `cd` and variables carry over; Up and Down recall earlier commands.
+
 ## Settings
 
 | Section | Options |
 | --- | --- |
 | Video | Resolution (the phone's own, or 2560 down to 800 px), bit rate, frame rate cap, codec (H.264, H.265, AV1) |
 | Sound | Play the phone's sound on the PC, volume |
-| Phone | Show touches, keep the phone awake while plugged in, turn its screen off when mirroring starts, lock it when the window closes |
+| Phone | Show touches, keep the phone awake while plugged in, turn its screen off when mirroring starts, lock it when the window closes, reconnect by itself, show the phone's notifications on this PC |
 | Windows and files | Keep phone windows on top, screenshot and recording folders |
 | Updates | Check for updates at start, check now |
 
@@ -199,6 +244,7 @@ PC, over your own USB cable or local network.
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks (turn them off in Settings) | Nothing besides the request |
 | [OpenStreetMap](https://www.openstreetmap.org) | Only when you click **Show on map** in the gallery | The photo's coordinates, in the map address |
+| [OpenStreetMap tiles](https://operations.osmfoundation.org/policies/tiles/) | Only in the gallery's **Map**, after you agree | Requests for the map tiles on screen, which shows the areas you look at |
 
 Place names in the gallery are worked out on your PC from a built-in city list; no location is looked up online.
 
@@ -210,6 +256,7 @@ Place names in the gallery are worked out on your PC from a built-in city list; 
 - **Audio.** Opus (or AAC, FLAC, raw) is decoded with FFmpeg and played through WASAPI with a 40 ms buffer. Whatever builds up past 200 ms is dropped, so sound never drifts behind the picture.
 - **Recording.** The phone's packets are remuxed into MP4 as they arrive, without re-encoding. Recording asks the phone for a fresh key frame so the file starts at once, and carries new parameter sets after a rotation.
 - **Control.** Mouse and keyboard events become scrcpy control messages in a platform-free mapper in `Streamy.Core/Input`. They go through a queue to one writer, so they reach the phone in order, and are serialized byte for byte like scrcpy's own client; the unit tests use scrcpy's test vectors.
+- **Apps** come from `helper/`, a few hundred lines of Java built to a 5 KB dex (`tools/build-helper.ps1`) and run with `app_process` like scrcpy-server. As the shell user it asks the package manager for labels, versions and icons, and the storage-stats service for sizes. **App windows** use scrcpy's virtual display option: the app starts on a new display that is mirrored, while the phone's own screen is untouched.
 - **Phone details** come from one `adb shell` call (`getprop`, `/proc/meminfo`, `df`, SurfaceFlinger's GLES line, `dumpsys battery`, `wm`, CPU frequencies), parsed in `Streamy.Core/Adb/DeviceInfo.cs`.
 - **Updates** come from GitHub Releases tagged `vMAJOR.MINOR.PATCH`. The new exe is downloaded beside the running one with a progress window (size, percent, speed, Cancel), checked against the SHA-256 GitHub publishes, then swapped in and restarted.
 
@@ -219,27 +266,30 @@ Place names in the gallery are worked out on your PC from a built-in city list; 
 streamy/
 ├── src/
 │   ├── Streamy.Core/             Logic with no Windows or UI dependencies
-│   │   ├── Adb/                  adb output parsers, phone details, QR pairing
+│   │   ├── Adb/                  adb output parsers, phone details, QR pairing, notifications, logcat lines
+│   │   ├── Apps/                 Installed apps from the phone helper, app commands
 │   │   ├── Files/                Phone folder listing, paths and shell quoting
-│   │   ├── Media/                Phone media library, details, GPS from EXIF and MP4, offline place names
+│   │   ├── Media/                Phone media library, details, GPS, offline place names, backup plan, map maths
 │   │   ├── Geometry/             Fitting the frame in the window, window to phone coordinates
 │   │   ├── Input/                Android key codes, Windows key map, mouse/keyboard to control messages
 │   │   ├── Protocol/             scrcpy control and device messages, packet headers, config merging
 │   │   └── Server/               scrcpy-server options and start command
 │   └── Streamy/                  The Windows app
-│       ├── Assets/               App icon (drawn by UI/AppIcon.cs)
+│       ├── Assets/               App icon (drawn by UI/AppIcon.cs) and the built phone helper
 │       ├── Audio/                FFmpeg audio decoder, WASAPI player
 │       ├── DevTools/             Command-line switches for testing against a real phone
 │       ├── Recording/            MP4/MKV remuxer
 │       ├── Services/             adb runner, bundled files, settings, file sending, updater, log
 │       ├── Session/              One mirroring session: tunnel, sockets, stream readers, control queue
 │       ├── ThirdParty/           adb, scrcpy-server, FFmpeg (downloaded, not committed)
-│       ├── UI/                   Device list, details, phone window, toolbar, gallery, viewer, file manager, settings, pairing
+│       ├── UI/                   Device list, phone window, gallery, viewer, map, apps, files, log and shell, settings
 │       └── Video/                FFmpeg video decoder, frame triple buffer, Direct3D 11 renderer
+├── helper/src/                   The phone-side helper (Java, runs with app_process)
 ├── tests/
 │   └── Streamy.Core.Tests/       xUnit tests
 ├── tools/
-│   └── fetch-deps.ps1            Downloads and checks the pinned scrcpy release
+│   ├── fetch-deps.ps1            Downloads and checks the pinned scrcpy release
+│   └── build-helper.ps1          Builds the helper with the Android SDK (the result is committed)
 ├── docs/                         SRS, icon and screenshots
 ├── deps.json                     Pinned scrcpy version, URL and SHA-256
 ├── Directory.Build.props         Version and settings shared by every project
@@ -281,6 +331,12 @@ Developer switches:
 | `--gallery SERIAL OUT` | Read the media library, then upload, find, thumbnail, download and delete a generated test picture |
 | `--viewer-test SERIAL OUT` | Copy and decode the newest HEIC and JPEG and a short video, and report timings |
 | `--places SERIAL OUT` | Read every item's location and report how many have one and how long it took |
+| `--apps SERIAL OUT` | List apps, fetch their icons and sizes, and open the calculator on a virtual display |
+| `--backup-test SERIAL OUT` | Back up the 12 newest items to a temporary folder twice and check the second run copies only a damaged file |
+| `--drag-test SERIAL OUT` | Drop two photos on a temporary folder through Explorer's own drop target |
+| `--notify-test SERIAL OUT` | Post a test notification from the shell and check the watcher reports it once |
+| `--console-test SERIAL OUT` | Open the log and shell window and check both work |
+| `--map-test OUT.png` | Draw the map with made-up pins |
 | `--render-icon DIR` | Write `app.ico` and a 512 px `icon.png` |
 
 ### Updating scrcpy
@@ -297,8 +353,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.4.2
-git push origin v1.4.2
+git tag v1.5.1
+git push origin v1.5.1
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds
@@ -313,6 +369,7 @@ The [release workflow](.github/workflows/release.yml) checks that the tag matche
 - [NAudio](https://github.com/naudio/NAudio) (MIT): WASAPI playback.
 - [QRCoder](https://github.com/codebude/QRCoder) (MIT): the pairing QR code.
 - [GeoNames](https://www.geonames.org) (CC BY 4.0): the city and country lists used to name places.
+- [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL, © OpenStreetMap contributors): the map tiles in the gallery's map.
 - Icons: Segoe Fluent Icons by Microsoft, built into Windows.
 
 ## License
