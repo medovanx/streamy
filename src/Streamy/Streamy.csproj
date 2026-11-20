@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\app.ico" LogicalName="app.ico" />
+    <!-- Phone-side helper (apps, icons), built from helper/src by tools/build-helper.ps1. -->
+    <EmbeddedResource Include="Assets\streamy-helper.jar" LogicalName="streamy-helper.jar" />
   </ItemGroup>
 
   <!--

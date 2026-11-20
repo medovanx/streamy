@@ -100,4 +100,13 @@ internal static class Glyph
     public static readonly string Play = G(0xE768);
     public static readonly string MapPin = G(0xE707);
     public static readonly string Pause = G(0xE769);
+    public static readonly string Apps = G(0xE71D);
+    public static readonly string NewWindow = G(0xE8A7);
+    public static readonly string Stop = G(0xE71A);
+    public static readonly string Erase = G(0xE75C);
+    public static readonly string Terminal = G(0xE756);
+    public static readonly string Map = G(0xE909);
+    public static readonly string Backup = G(0xE8F7);
+    public static readonly string Battery = G(0xE83F);
+    public static readonly string Search = G(0xE721);
 }

@@ -16,6 +16,14 @@ public class ServerOptionsTests
     }
 
     [Fact]
+    public void AppWindowsAskForANewDisplayAndStartTheApp()
+    {
+        var o = new ServerOptions { Scid = 1, NewDisplay = "", StartApp = "com.example.chat" };
+        Assert.Equal(["new_display=", "start_app=com.example.chat"], o.ToArguments().TakeLast(2));
+        Assert.DoesNotContain(new ServerOptions { Scid = 1 }.ToArguments(), a => a.StartsWith("new_display", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ScidIsZeroPaddedHex()
     {
         var o = new ServerOptions { Scid = 0xAB };

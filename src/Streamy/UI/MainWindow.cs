@@ -28,10 +28,11 @@ internal sealed class MainWindow : Form
     private readonly Button _wifi = new() { Text = "Switch to Wi-Fi", AutoSize = true, Enabled = false };
     private readonly Button _files = new() { Text = "Files", AutoSize = true, Enabled = false };
     private readonly Button _gallery = new() { Text = "Gallery", AutoSize = true, Enabled = false };
+    private readonly Button _apps = new() { Text = "Apps", AutoSize = true, Enabled = false };
     private readonly ToolTip _tips = new();
     private readonly DetailsPanel _details = new();
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
-    private readonly Dictionary<string, SessionWindow> _open = [];
+    private readonly Dictionary<string, SessionWindow> _open = Sessions.Mirrors;
     private readonly HashSet<string> _reconnecting = [];
     private readonly HashSet<string> _reconnectLogged = [];
     private IReadOnlyList<AdbDevice> _devices = [];
@@ -74,6 +75,7 @@ internal sealed class MainWindow : Form
         _wifi.Click += async (_, _) => await SwitchToWifiAsync();
         _files.Click += (_, _) => OpenFiles();
         _gallery.Click += (_, _) => OpenGallery();
+        _apps.Click += (_, _) => OpenApps();
 
         _tips.SetToolTip(_mirrorAll, "Open a window for every ready phone");
         _tips.SetToolTip(pairQr, "Android 11+: pair by scanning a QR code from Wireless debugging");
@@ -88,12 +90,14 @@ internal sealed class MainWindow : Form
         Glyph.Apply(_files, Glyph.Folder);
         Glyph.Apply(_gallery, Glyph.Gallery);
         _tips.SetToolTip(_gallery, "The selected phone's photos and videos by album: open, download, upload and delete");
+        Glyph.Apply(_apps, Glyph.Apps);
+        _tips.SetToolTip(_apps, "The selected phone's apps: open one on the phone or in its own window, force stop, clear data, uninstall, back up");
         Glyph.Apply(pairQr, Glyph.QrCode);
         Glyph.Apply(pairCode, Glyph.Key);
         Glyph.Apply(connect, Glyph.Link);
         Glyph.Apply(_wifi, Glyph.Wifi);
         Glyph.Apply(settings, Glyph.Settings);
-        bar.Controls.AddRange([_mirror, _mirrorAll, _files, _gallery, pairQr, pairCode, connect, _wifi, settings]);
+        bar.Controls.AddRange([_mirror, _mirrorAll, _files, _gallery, _apps, pairQr, pairCode, connect, _wifi, settings]);
 
         Controls.Add(_list);
         Controls.Add(_details);
@@ -127,7 +131,7 @@ internal sealed class MainWindow : Form
         _mirror.Text = row is { Saved: not null, Device: null } ? "Connect" : "Mirror";
         _mirrorAll.Enabled = _devices.Count(d => d.IsReady) > 1;
         _wifi.Enabled = row is { Device: { IsReady: true, IsWireless: false } };
-        _files.Enabled = _gallery.Enabled = row is { Device.IsReady: true };
+        _files.Enabled = _gallery.Enabled = _apps.Enabled = row is { Device.IsReady: true };
     }
 
     private async Task RefreshAsync()
@@ -247,6 +251,7 @@ internal sealed class MainWindow : Form
         var mirror = menu.Items.Add("Mirror", null, async (_, _) => await ActivateSelectedAsync());
         var files = menu.Items.Add("Browse files", null, (_, _) => OpenFiles());
         var gallery = menu.Items.Add("Gallery", null, (_, _) => OpenGallery());
+        var apps = menu.Items.Add("Apps", null, (_, _) => OpenApps());
         var wifi = menu.Items.Add("Switch to Wi-Fi", null, async (_, _) => await SwitchToWifiAsync());
         var disconnect = menu.Items.Add("Disconnect", null, async (_, _) => await DisconnectAsync());
         var forget = menu.Items.Add("Forget", null, (_, _) => Forget());
@@ -256,7 +261,7 @@ internal sealed class MainWindow : Form
             if (row is null) { e.Cancel = true; return; }
             mirror.Text = row.Device is null ? "Connect" : "Mirror";
             mirror.Enabled = row.Device is null or { IsReady: true };
-            files.Visible = gallery.Visible = row.Device is { IsReady: true };
+            files.Visible = gallery.Visible = apps.Visible = row.Device is { IsReady: true };
             wifi.Visible = row.Device is { IsReady: true, IsWireless: false };
             disconnect.Visible = row.Device is { IsWireless: true };
             forget.Visible = AppSettings.Current.SavedDevices.Any(s => s.Endpoint == row.Key);
@@ -285,6 +290,11 @@ internal sealed class MainWindow : Form
     private void OpenFiles()
     {
         if (Selected is { Device: { IsReady: true } d }) FileManager.Open(d.Serial, d.DisplayName);
+    }
+
+    private void OpenApps()
+    {
+        if (Selected is { Device: { IsReady: true } d }) FileManager.OpenApps(d.Serial, d.DisplayName);
     }
 
     private void OpenGallery()

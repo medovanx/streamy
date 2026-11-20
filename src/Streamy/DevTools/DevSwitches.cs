@@ -29,6 +29,7 @@ internal static class DevSwitches
             ["--gallery", var serial, var outFile] => Report(outFile, sb => GalleryTestAsync(sb, serial)),
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
+            ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
             ["--send", var serial, var outFile, .. var files] => Report(outFile, async sb =>
             {
                 var r = await FileSender.SendAsync(serial, files, progress: line => sb.AppendLine(line));
@@ -227,6 +228,43 @@ internal static class DevSwitches
         await index.ScanAsync(all, null, CancellationToken.None);
         sb.AppendLine($"second scan (all cached): {watch.ElapsedMilliseconds} ms");
         return withPlace > 0;
+    }
+
+    /// <summary>
+    /// Lists apps, fetches every icon, and opens the calculator in a session on a new virtual display for a few
+    /// seconds to see frames arrive. Nothing on the phone is changed besides the calculator opening and closing.
+    /// </summary>
+    private static async Task<bool> AppsTestAsync(StringBuilder sb, string serial)
+    {
+        bool ok = true;
+        void Check(string what, bool cond) { sb.AppendLine($"{(cond ? "ok  " : "FAIL")} {what}"); ok &= cond; }
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var apps = await PhoneHelper.AppsAsync(serial);
+        Check($"list: {apps.Count} apps, {apps.Count(a => a.IsLaunchable)} launchable, {watch.ElapsedMilliseconds} ms", apps.Count > 20);
+        watch.Restart();
+        var sized = await PhoneHelper.AppsAsync(serial, sizes: true);
+        Check($"sizes: {sized.Count(a => a.AppBytes >= 0)} of {sized.Count} measured, {watch.ElapsedMilliseconds} ms", sized.Count(a => a.AppBytes >= 0) > sized.Count / 2);
+        watch.Restart();
+        int arrived = 0;
+        await PhoneHelper.FetchIconsAsync(serial, apps.Where(a => a.IsLaunchable).ToList(), _ => Interlocked.Increment(ref arrived));
+        int onDisk = apps.Count(a => a.IsLaunchable && File.Exists(PhoneHelper.IconFile(a)));
+        Check($"icons: {arrived} fetched now, {onDisk} of {apps.Count(a => a.IsLaunchable)} on disk, {watch.ElapsedMilliseconds} ms", onDisk >= apps.Count(a => a.IsLaunchable) - 2);
+
+        var paths = Core.Apps.PhoneApps.ParsePaths((await AdbClient.Default.ShellAsync(serial, [Core.Apps.PhoneApps.PathCommand(apps.First(a => !a.IsSystem).Package)])).Output);
+        Check($"pm path: {paths.Count} APK(s)", paths.Count > 0);
+
+        var calc = apps.FirstOrDefault(a => a.IsLaunchable && a.Package.Contains("calculator", StringComparison.OrdinalIgnoreCase));
+        if (calc is null) { sb.AppendLine("no calculator app; skipping the window test"); return ok; }
+        var options = AppSettings.Current.ToServerOptions() with { NewDisplay = "", StartApp = calc.Package, Audio = false };
+        await using var session = new Session.MirrorSession(AdbClient.Default, serial, options);
+        watch.Restart();
+        await session.StartAsync();
+        await Task.Delay(4000);
+        Check($"{calc.Label} on a new display: {session.Width}x{session.Height}, {session.VideoStats.Packets} video packets in {watch.ElapsedMilliseconds} ms", session.VideoStats.Packets > 3 && session.Width > 0);
+        var displays = (await AdbClient.Default.ShellAsync(serial, ["dumpsys display | grep -c 'scrcpy'"])).Output.Trim();
+        sb.AppendLine($"  displays named scrcpy while open: {displays}");
+        sb.AppendLine("  server log: " + string.Join(" | ", session.ServerLog.Split((char)10).Where(l => l.Contains("display", StringComparison.OrdinalIgnoreCase) || l.Contains("ERROR")).Take(4)));
+        return ok;
     }
 
     private static int RenderIcon(string dir)

@@ -46,6 +46,15 @@ public sealed record ServerOptions
     /// <summary>Keep sound playing on the phone too (only with audio source "playback").</summary>
     public bool AudioDup { get; init; }
 
+    /// <summary>
+    /// Mirror a new virtual display instead of the phone's screen: "" for one the size of the phone's screen,
+    /// or "WIDTHxHEIGHT/DPI". Null mirrors the screen itself.
+    /// </summary>
+    public string? NewDisplay { get; init; }
+
+    /// <summary>Package to start when the session begins (on the new display when there is one).</summary>
+    public string? StartApp { get; init; }
+
     public static uint NewScid() => (uint)Random.Shared.Next() & 0x7FFFFFFF;
 
     public string SocketName => ScrcpyProtocol.SocketName(Scid);
@@ -73,6 +82,8 @@ public sealed record ServerOptions
         if (StayAwake) args.Add("stay_awake=true");
         if (PowerOffOnClose) args.Add("power_off_on_close=true");
         if (!ClipboardAutosync) args.Add("clipboard_autosync=false");
+        if (NewDisplay is not null) args.Add("new_display=" + NewDisplay);
+        if (StartApp is { Length: > 0 } app) args.Add("start_app=" + app);
         return args;
     }
 

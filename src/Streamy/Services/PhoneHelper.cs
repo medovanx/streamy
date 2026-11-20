@@ -1,0 +1,83 @@
+using System.Reflection;
+using Streamy.Core.Apps;
+
+namespace Streamy.Services;
+
+/// <summary>
+/// Runs Streamy's phone-side helper: pushes it once per phone per run, lists apps and fetches their icons, which
+/// are kept in %LOCALAPPDATA%\Streamy\icons by package and version so a second visit draws them at once.
+/// </summary>
+public static class PhoneHelper
+{
+    private static readonly HashSet<string> Pushed = [];
+    private static readonly SemaphoreSlim PushGate = new(1, 1);
+
+    public static string IconFolder { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Streamy", "icons");
+
+    private static async Task EnsurePushedAsync(string serial, CancellationToken ct)
+    {
+        await PushGate.WaitAsync(ct);
+        try
+        {
+            if (Pushed.Contains(serial)) return;
+            var local = Path.Combine(Path.GetTempPath(), "streamy-helper.jar");
+            using (var src = Assembly.GetExecutingAssembly().GetManifestResourceStream("streamy-helper.jar")
+                ?? throw new FileNotFoundException("This build has no phone helper."))
+            using (var dst = File.Create(local))
+                await src.CopyToAsync(dst, ct);
+            await AdbClient.Default.PushAsync(serial, local, PhoneApps.HelperPath, ct);
+            Pushed.Add(serial);
+        }
+        finally
+        {
+            PushGate.Release();
+        }
+    }
+
+    /// <summary>The installed apps; with <paramref name="sizes"/>, their storage too (slower).</summary>
+    public static async Task<IReadOnlyList<PhoneApp>> AppsAsync(string serial, bool sizes = false, CancellationToken ct = default)
+    {
+        await EnsurePushedAsync(serial, ct);
+        var r = await AdbClient.Default.RunAsync(["shell", sizes ? PhoneApps.ListWithSizesCommand : PhoneApps.ListCommand], serial, TimeSpan.FromMinutes(2), ct);
+        var apps = PhoneApps.Parse(r.Output);
+        if (apps.Count == 0) throw new IOException(r.All.Length > 0 ? r.All : "The phone listed no apps.");
+        return apps;
+    }
+
+    public static string IconFile(PhoneApp app) => Path.Combine(IconFolder, app.IconKey + ".png");
+
+    /// <summary>
+    /// Makes sure every app's icon is on disk, asking the phone only for missing ones. If an icon takes the helper
+    /// down, that app is skipped and the rest are asked for again. Calls back as icons arrive.
+    /// </summary>
+    public static async Task FetchIconsAsync(string serial, IReadOnlyList<PhoneApp> apps, Action<PhoneApp> arrived, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(IconFolder);
+        var missing = apps.Where(a => !File.Exists(IconFile(a))).ToList();
+        if (missing.Count == 0) return;
+        await EnsurePushedAsync(serial, ct);
+        var byPackage = missing.ToDictionary(a => a.Package);
+        var queue = new Queue<PhoneApp>(missing);
+        while (queue.Count > 0)
+        {
+            // Batches keep the command line short; each batch is one process on the phone.
+            var batch = new List<PhoneApp>();
+            while (queue.Count > 0 && batch.Count < 60) batch.Add(queue.Dequeue());
+            var r = await AdbClient.Default.RunAsync(["shell", PhoneApps.IconsCommand(batch.Select(a => a.Package))], serial, TimeSpan.FromMinutes(1), ct);
+            var done = new HashSet<string>();
+            foreach (var (package, png) in PhoneApps.ParseIcons(r.Output))
+            {
+                done.Add(package);
+                if (png is null || !byPackage.TryGetValue(package, out var app)) continue;
+                await File.WriteAllBytesAsync(IconFile(app), png, ct);
+                arrived(app);
+            }
+            // The helper died part way: the first unanswered app is the culprit; ask again for the ones after it.
+            var unanswered = batch.Where(a => !done.Contains(a.Package)).ToList();
+            if (unanswered.Count > 1)
+                foreach (var a in unanswered.Skip(1)) queue.Enqueue(a);
+            if (unanswered.Count > 0) Log.Info($"icon failed: {unanswered[0].Package}");
+        }
+    }
+}

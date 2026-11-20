@@ -27,10 +27,14 @@ internal sealed class SessionWindow : Form
     private char _highSurrogate;
     private ulong _clipboardSequence;
 
-    public SessionWindow(MirrorSession session)
+    private readonly string _name;
+
+    /// <param name="title">The window's name; the phone's name when null. App windows pass "App on Phone".</param>
+    public SessionWindow(MirrorSession session, string? title = null)
     {
         _session = session;
-        Text = $"{session.DeviceName} - Streamy";
+        _name = title ?? session.DeviceName;
+        Text = $"{_name} - Streamy";
         Icon = AppIcon.Load();
         BackColor = Color.Black;
         StartPosition = FormStartPosition.Manual;
@@ -49,7 +53,7 @@ internal sealed class SessionWindow : Form
         _session.DeviceMessageReceived += OnDeviceMessage;
         _session.Ended += ex => BeginInvoke(() =>
         {
-            Text = $"{_session.DeviceName} - disconnected";
+            Text = $"{_name} - disconnected";
             if (ex is not null && !IsDisposed) MessageBox.Show(this, ex.Message, "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         });
         _view.Resize += (_, _) =>
@@ -229,6 +233,7 @@ internal sealed class SessionWindow : Form
         _toolbar.AddSeparator();
         _toolbar.Add(Glyph.Folder, "Browse the phone's files", _tips, () => FileManager.Open(_session.Serial, _session.DeviceName));
         _toolbar.Add(Glyph.Gallery, "Photos and videos", _tips, () => FileManager.OpenGallery(_session.Serial, _session.DeviceName));
+        _toolbar.Add(Glyph.Apps, "Apps: open one here or in its own window, manage them", _tips, () => FileManager.OpenApps(_session.Serial, _session.DeviceName));
         _toolbar.Add(Glyph.Camera, "Screenshot (saved and copied to the clipboard)", _tips, TakeScreenshot);
         _recordButton = _toolbar.Add(Glyph.Record, "Record to MP4 (click again to stop)", _tips, ToggleRecording);
         _muteButton = _toolbar.Add(Glyph.Speaker, "Mute the phone's sound on the PC", _tips, ToggleMute);
@@ -402,7 +407,7 @@ internal sealed class SessionWindow : Form
         long presented = _renderer?.PresentedFrames ?? 0;
         string rec = _session.Recorder is { } r ? $" - REC {DateTime.Now - r.StartedAt:mm\\:ss}" : "";
         string flash = _flash is not null && DateTime.Now < _flashUntil ? " - " + _flash : "";
-        Text = $"{_session.DeviceName} - {presented - _lastPresented} fps{rec}{flash} - Streamy";
+        Text = $"{_name} - {presented - _lastPresented} fps{rec}{flash} - Streamy";
         _lastPresented = presented;
     }
 
