@@ -75,9 +75,14 @@ internal sealed class PhoneFileDrag : ComDataObject
     /// <summary>Runs the drag until the button is released; true when something took the files.</summary>
     public bool Run()
     {
+        Application.OleRequired(); // DoDragDrop needs OLE on this thread; WinForms normally does this itself
         int hr = DoDragDrop(this, new DropSource(this), (int)DragDropEffects.Copy, out int effect);
+        if (hr < 0) Log.Info($"drag out: DoDragDrop failed with 0x{hr:X8}");
         return hr == 0x40100 && effect != 0;
     }
+
+    /// <summary>The temporary folder this drag copied into, if it got that far.</summary>
+    public string? Folder => _files is not null ? _dir : null;
 
     // ---- IDataObject ---------------------------------------------------------------------------------------
 

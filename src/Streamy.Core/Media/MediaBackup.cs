@@ -3,8 +3,9 @@ namespace Streamy.Core.Media;
 /// <summary>
 /// Plans a gallery backup: every photo and video goes to the same place under the backup folder as on the phone
 /// (DCIM\Camera\..., Pictures\Screenshots\...), so names never clash and the folder reads like the phone. A file
-/// already there with the same size is skipped, so each backup only copies what is new; a copy cut short has the
-/// wrong size and is copied again.
+/// already there is skipped when its size matches the phone's, or its date does (adb pull -a copies the date, and
+/// the phone's media index sometimes has an out-of-date size), so each backup only copies what is new; a copy cut
+/// short has neither and is copied again.
 /// </summary>
 public static class MediaBackup
 {
@@ -40,7 +41,11 @@ public static class MediaBackup
         return s.Length == 0 ? "_" : s;
     }
 
-    /// <summary>The items to copy: those whose file is missing or a different size in the backup folder.</summary>
-    public static IReadOnlyList<MediaItem> Plan(IEnumerable<MediaItem> items, Func<string, long?> sizeOnDisk) =>
-        items.Where(i => sizeOnDisk(RelativePath(i)) is not { } size || (i.Size > 0 && size != i.Size)).ToList();
+    /// <summary>The items to copy: those missing from the backup folder, or there with neither the size nor the date of the phone's file.</summary>
+    public static IReadOnlyList<MediaItem> Plan(IEnumerable<MediaItem> items, Func<string, (long Size, long Modified)?> onDisk) =>
+        items.Where(i => !IsBackedUp(i, onDisk(RelativePath(i)))).ToList();
+
+    /// <summary>A file on disk (size, last write in Unix seconds) counts as this item's copy.</summary>
+    public static bool IsBackedUp(MediaItem item, (long Size, long Modified)? file) =>
+        file is { } f && (item.Size <= 0 || f.Size == item.Size || (item.Modified > 0 && Math.Abs(f.Modified - item.Modified) <= 2));
 }

@@ -23,11 +23,7 @@ public static class GalleryBackup
     public static async Task<Result> RunAsync(string serial, IReadOnlyList<MediaItem> all, string folder, IProgress<Progress> progress, CancellationToken ct)
     {
         Directory.CreateDirectory(folder);
-        var todo = MediaBackup.Plan(all, rel =>
-        {
-            var f = new FileInfo(Path.Combine(folder, rel));
-            return f.Exists ? f.Length : null;
-        });
+        var todo = MediaBackup.Plan(all, rel => OnDisk(Path.Combine(folder, rel)));
         long total = todo.Sum(i => Math.Max(0, i.Size));
         int skipped = all.Count - todo.Count;
         var failures = new List<string>();
@@ -73,7 +69,9 @@ public static class GalleryBackup
                 // adb names the file as on the phone; a name Windows changed (MediaBackup.Safe) needs a rename.
                 var pulled = new FileInfo(Path.Combine(dir, item.Name));
                 if (!target.Exists && pulled.Exists && pulled.FullName != target.FullName) { pulled.MoveTo(target.FullName, overwrite: true); target.Refresh(); }
-                if (target.Exists && (item.Size <= 0 || target.Length == item.Size))
+                // adb said the batch went through and the file is there: done, even if the phone's index has a
+                // stale size. Otherwise the same rule as the plan: size or date must match.
+                if (target.Exists && (r.Ok || MediaBackup.IsBackedUp(item, OnDisk(target.FullName))))
                 {
                     done++;
                     bytesDone += Math.Max(0, item.Size);
@@ -86,6 +84,12 @@ public static class GalleryBackup
             progress.Report(new Progress(done, todo.Count, bytesDone, total, ""));
         }
         return new Result(done, skipped, bytesDone, failures);
+    }
+
+    private static (long Size, long Modified)? OnDisk(string path)
+    {
+        var f = new FileInfo(path);
+        return f.Exists ? (f.Length, new DateTimeOffset(f.LastWriteTimeUtc).ToUnixTimeSeconds()) : null;
     }
 
     /// <summary>Large videos get batches of their own so the progress moves and a failure costs little.</summary>

@@ -39,8 +39,12 @@ internal sealed class SessionWindow : Form
     public MirrorSession Session => _session;
 
     /// <param name="title">The window's name; the phone's name when null. App windows pass "App on Phone".</param>
-    public SessionWindow(MirrorSession session, string? title = null)
+    private readonly bool _isAppWindow;
+
+    /// <param name="isAppWindow">An app on its own virtual display: the phone's screen is left alone (not turned off).</param>
+    public SessionWindow(MirrorSession session, string? title = null, bool isAppWindow = false)
     {
+        _isAppWindow = isAppWindow;
         _session = session;
         _name = title ?? session.DeviceName;
         Text = $"{_name} - Streamy";
@@ -97,7 +101,7 @@ internal sealed class SessionWindow : Form
         _renderer.Signal();
         _timer.Start();
         StartAudio();
-        if (AppSettings.Current.TurnScreenOff) _session.Send(ControlMessage.SetDisplayPower(false));
+        if (AppSettings.Current.TurnScreenOff && !_isAppWindow) _session.Send(ControlMessage.SetDisplayPower(false));
     }
 
     // ---- Files --------------------------------------------------------------------------------------------

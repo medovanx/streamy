@@ -261,8 +261,34 @@ internal static class DevSwitches
 
         var calc = apps.FirstOrDefault(a => a.IsLaunchable && a.Package.Contains("calculator", StringComparison.OrdinalIgnoreCase));
         if (calc is null) { sb.AppendLine("no calculator app; skipping the window test"); return ok; }
+
+        // Open, as the Open button does, then force stop, checking the app's process each time.
+        async Task<bool> Running() => (await AdbClient.Default.ShellAsync(serial, ["pidof " + calc.Package])).Output.Trim().Length > 0;
+        var launch = await AdbClient.Default.ShellAsync(serial, [Core.Apps.PhoneApps.LaunchCommand(calc.Package)]);
+        await Task.Delay(1500);
+        bool launchOk = launch.Ok && !launch.All.Contains("Error", StringComparison.Ordinal) && !launch.All.Contains("aborted", StringComparison.Ordinal);
+        Check($"open {calc.Label}: running {await Running()}, output: {launch.All.Split((char)10).FirstOrDefault(l => l.Contains("Events injected", StringComparison.Ordinal))?.Trim()}", launchOk && await Running());
+        var stop = await AdbClient.Default.ShellAsync(serial, [Core.Apps.PhoneApps.ForceStopCommand(calc.Package)]);
+        await Task.Delay(800);
+        Check($"force stop: running {await Running()}", stop.Ok && !await Running());
+
+        var apkDir = Path.Combine(Path.GetTempPath(), "streamy-apk-test-" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(apkDir);
+        try
+        {
+            var (saved, count) = await PhoneHelper.BackupApkAsync(serial, calc, apkDir);
+            long bytes = count == 1 ? new FileInfo(saved).Length : Directory.GetFiles(saved).Sum(f => new FileInfo(f).Length);
+            Check($"back up APK: {Path.GetFileName(saved)}, {count} file(s), {Core.Files.PhoneFiles.FormatSize(bytes)}, no temp folder left: {Directory.GetDirectories(apkDir).All(d => !Path.GetFileName(d).StartsWith('.'))}",
+                bytes > 10_000 && Directory.GetDirectories(apkDir).All(d => !Path.GetFileName(d).StartsWith('.')));
+        }
+        finally
+        {
+            Directory.Delete(apkDir, recursive: true);
+        }
+        async Task<int> VirtualDisplays() => (await AdbClient.Default.ShellAsync(serial, ["dumpsys display | grep -c 'scrcpy'"])).Output.Trim() is var t && int.TryParse(t, out var n) ? n : -1;
+        int displaysBefore = await VirtualDisplays();
         var options = AppSettings.Current.ToServerOptions() with { NewDisplay = "", StartApp = calc.Package, Audio = false };
-        await using var session = new Session.MirrorSession(AdbClient.Default, serial, options);
+        var session = new Session.MirrorSession(AdbClient.Default, serial, options);
         watch.Restart();
         await session.StartAsync();
         await Task.Delay(4000);
@@ -270,6 +296,12 @@ internal static class DevSwitches
         var displays = (await AdbClient.Default.ShellAsync(serial, ["dumpsys display | grep -c 'scrcpy'"])).Output.Trim();
         sb.AppendLine($"  displays named scrcpy while open: {displays}");
         sb.AppendLine("  server log: " + string.Join(" | ", session.ServerLog.Split((char)10).Where(l => l.Contains("display", StringComparison.OrdinalIgnoreCase) || l.Contains("ERROR")).Take(4)));
+        await session.DisposeAsync();
+        await Task.Delay(2000);
+        int displaysAfter = await VirtualDisplays();
+        bool stillRunning = await Running();
+        Check($"closing the window removes its display ({displaysBefore} scrcpy lines before, {displaysAfter} after) and closes the app (running: {stillRunning})",
+            displaysAfter <= displaysBefore && !stillRunning);
         return ok;
     }
 
@@ -284,7 +316,9 @@ internal static class DevSwitches
         Directory.CreateDirectory(folder);
         try
         {
+            using var cleanup = new DeleteOnDispose();
             var data = new UI.PhoneFileDrag(serial, photos);
+            cleanup.Folder = () => data.Folder;
             var effect = ShellDrop.DropOn(folder, data, line => sb.AppendLine($"  {line}, files asked for {data.Requests} time(s), drag folder exists: {Directory.Exists(Path.Combine(Path.GetTempPath(), "Streamy drag")) && Directory.GetDirectories(Path.Combine(Path.GetTempPath(), "Streamy drag")).Any(d => Directory.GetFiles(d).Length > 0 && Directory.GetCreationTimeUtc(d) > DateTime.UtcNow.AddMinutes(-1))}"),
                 beforeDrop: () => data.Dropping = true);
             for (int i = 0; i < 40 && Directory.GetFiles(folder).Length < photos.Count; i++) await Task.Delay(250);
@@ -407,6 +441,17 @@ internal static class DevSwitches
         sb.AppendLine(logOk && shellOk ? "result: ok" : "result: failed");
         File.WriteAllText(outFile, sb.ToString());
         return logOk && shellOk ? 0 : 1;
+    }
+
+    /// <summary>Deletes the drag's own copies too: they are the phone's photos.</summary>
+    private sealed class DeleteOnDispose : IDisposable
+    {
+        public Func<string?>? Folder { get; set; }
+
+        public void Dispose()
+        {
+            if (Folder?.Invoke() is { } dir && Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
     }
 
     /// <summary>Opens one window on its own, for looking at it (screenshots of a single window).</summary>

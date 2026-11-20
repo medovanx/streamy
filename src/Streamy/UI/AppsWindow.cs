@@ -303,32 +303,8 @@ internal sealed class AppsWindow : Form
         SetBusy(true, $"Backing up {app.Label}");
         try
         {
-            var paths = PhoneApps.ParsePaths((await AdbClient.Default.ShellAsync(_serial, [PhoneApps.PathCommand(app.Package)])).Output);
-            if (paths.Count == 0) throw new IOException("the phone did not say where the app is installed");
-            string name = PhoneApps.BackupName(app);
-            string result;
-            if (paths.Count == 1)
-            {
-                var tmp = Path.Combine(dlg.SelectedPath, $".streamy-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tmp);
-                try
-                {
-                    await AdbClient.Default.PullAsync(_serial, paths[0], tmp);
-                    result = Path.Combine(dlg.SelectedPath, name + ".apk");
-                    File.Move(Path.Combine(tmp, Path.GetFileName(paths[0])), result, overwrite: true);
-                }
-                finally
-                {
-                    Directory.Delete(tmp, recursive: true);
-                }
-            }
-            else
-            {
-                result = Path.Combine(dlg.SelectedPath, name);
-                Directory.CreateDirectory(result);
-                foreach (var p in paths) await AdbClient.Default.PullAsync(_serial, p, result);
-            }
-            _status.Text = paths.Count == 1 ? $"Saved {result}" : $"Saved {paths.Count} APKs (the app is split) in {result}";
+            var (result, count) = await PhoneHelper.BackupApkAsync(_serial, app, dlg.SelectedPath);
+            _status.Text = count == 1 ? $"Saved {result}" : $"Saved {count} APKs (the app is split) in {result}";
         }
         catch (Exception ex)
         {
@@ -412,6 +388,8 @@ internal static class AppWindows
             StartApp = app.Package,
             // The phone has one sound output; an app window would double whatever the main window plays.
             Audio = AppSettings.Current.Audio && !Sessions.IsMirroring(serial),
+            // Closing an app window must not lock the phone, and keeping it awake is the main window's business.
+            PowerOffOnClose = false,
         };
         var session = new MirrorSession(AdbClient.Default, serial, options);
         try
@@ -423,6 +401,6 @@ internal static class AppWindows
             await session.DisposeAsync();
             throw;
         }
-        new SessionWindow(session, $"{app.Label} on {deviceName}").Show();
+        new SessionWindow(session, $"{app.Label} on {deviceName}", isAppWindow: true).Show();
     }
 }

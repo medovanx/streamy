@@ -45,6 +45,37 @@ public static class PhoneHelper
         return apps;
     }
 
+    /// <summary>
+    /// Copies the app's APK into <paramref name="folder"/> as "Label version.apk", or, for an app split into several
+    /// APKs, a folder of that name holding all of them. Returns the path and how many APKs it holds.
+    /// </summary>
+    public static async Task<(string Path, int Count)> BackupApkAsync(string serial, PhoneApp app, string folder, CancellationToken ct = default)
+    {
+        var paths = PhoneApps.ParsePaths((await AdbClient.Default.ShellAsync(serial, [PhoneApps.PathCommand(app.Package)], ct)).Output);
+        if (paths.Count == 0) throw new IOException("the phone did not say where the app is installed");
+        string name = PhoneApps.BackupName(app);
+        if (paths.Count > 1)
+        {
+            var dir = Path.Combine(folder, name);
+            Directory.CreateDirectory(dir);
+            foreach (var p in paths) await AdbClient.Default.PullAsync(serial, p, dir, ct);
+            return (dir, paths.Count);
+        }
+        var tmp = Path.Combine(folder, $".streamy-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            await AdbClient.Default.PullAsync(serial, paths[0], tmp, ct);
+            var result = Path.Combine(folder, name + ".apk");
+            File.Move(Path.Combine(tmp, Path.GetFileName(paths[0])), result, overwrite: true);
+            return (result, 1);
+        }
+        finally
+        {
+            Directory.Delete(tmp, recursive: true);
+        }
+    }
+
     public static string IconFile(PhoneApp app) => Path.Combine(IconFolder, app.IconKey + ".png");
 
     /// <summary>

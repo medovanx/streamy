@@ -22,6 +22,7 @@ public sealed class AdbClient(string adbPath)
     {
         using var p = new Process { StartInfo = CreateStartInfo(args, serial) };
         p.Start();
+        ChildProcesses.Track(p);
         var stdout = p.StandardOutput.ReadToEndAsync(ct);
         var stderr = p.StandardError.ReadToEndAsync(ct);
 
@@ -44,6 +45,7 @@ public sealed class AdbClient(string adbPath)
     {
         var p = new Process { StartInfo = CreateStartInfo(args, serial), EnableRaisingEvents = true };
         p.Start();
+        ChildProcesses.Track(p);
         return p;
     }
 
@@ -55,6 +57,7 @@ public sealed class AdbClient(string adbPath)
         psi.StandardInputEncoding = new UTF8Encoding(false);
         var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
         p.Start();
+        ChildProcesses.Track(p);
         return p;
     }
 
@@ -115,6 +118,7 @@ public sealed class AdbClient(string adbPath)
     {
         using var p = new Process { StartInfo = CreateStartInfo(["exec-out", command], serial) };
         p.Start();
+        ChildProcesses.Track(p);
         using var ms = new MemoryStream();
         var copy = p.StandardOutput.BaseStream.CopyToAsync(ms, ct);
         var err = p.StandardError.ReadToEndAsync(ct);
