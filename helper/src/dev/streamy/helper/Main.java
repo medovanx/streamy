@@ -91,7 +91,9 @@ public final class Main {
             if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
                 flags.append('s');
             }
-            if (!ai.enabled) {
+            // DISABLED_UNTIL_USED (4): Samsung puts unused apps to sleep this way; they wake when opened, so they are
+            // not shown as disabled.
+            if (!ai.enabled && enabledSetting(pm, p.packageName) != 4) {
                 flags.append('d');
             }
             if (pm.getLaunchIntentForPackage(p.packageName) != null) {
@@ -165,6 +167,14 @@ public final class Main {
         } catch (Throwable t) {
             out.print(pkg);
             out.print("\t-\n");
+        }
+    }
+
+    private static int enabledSetting(PackageManager pm, String pkg) {
+        try {
+            return pm.getApplicationEnabledSetting(pkg);
+        } catch (Throwable t) {
+            return -1;
         }
     }
 

@@ -146,13 +146,13 @@ internal sealed class AppsWindow : Form
     /// <summary>Icons on disk show at once; missing ones come from the phone in the background.</summary>
     private async Task LoadIconsAsync()
     {
-        var wanted = Visible(_apps).ToList();
-        foreach (var a in wanted) ShowIcon(a);
+        var wanted = Listed(_apps).ToList();
+        foreach (var a in wanted) ShowAppIcon(a);
         try
         {
-            await PhoneHelper.FetchIconsAsync(_serial, wanted, app => BeginInvoke(() => ShowIcon(app)));
+            await PhoneHelper.FetchIconsAsync(_serial, wanted, app => BeginInvoke(() => ShowAppIcon(app)));
             var rest = _apps.Except(wanted).ToList();
-            if (!IsDisposed) await PhoneHelper.FetchIconsAsync(_serial, rest, app => BeginInvoke(() => ShowIcon(app)));
+            if (!IsDisposed) await PhoneHelper.FetchIconsAsync(_serial, rest, app => BeginInvoke(() => ShowAppIcon(app)));
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException)
         {
@@ -160,7 +160,7 @@ internal sealed class AppsWindow : Form
         }
     }
 
-    private void ShowIcon(PhoneApp app)
+    private void ShowAppIcon(PhoneApp app)
     {
         if (IsDisposed || _images.Images.ContainsKey(app.IconKey)) return;
         var file = PhoneHelper.IconFile(app);
@@ -175,7 +175,7 @@ internal sealed class AppsWindow : Form
             if (item.Tag is PhoneApp a && a.IconKey == app.IconKey) item.ImageKey = app.IconKey;
     }
 
-    private IEnumerable<PhoneApp> Visible(IEnumerable<PhoneApp> apps)
+    private IEnumerable<PhoneApp> Listed(IEnumerable<PhoneApp> apps)
     {
         var q = _search.Text.Trim();
         return apps.Where(a => _show.SelectedIndex switch
@@ -190,7 +190,7 @@ internal sealed class AppsWindow : Form
     private void Fill()
     {
         var keep = Selected?.Package;
-        IEnumerable<PhoneApp> rows = Visible(_apps);
+        IEnumerable<PhoneApp> rows = Listed(_apps);
         rows = _sortColumn switch
         {
             1 => rows.OrderBy(a => a.VersionName, StringComparer.OrdinalIgnoreCase),
@@ -207,7 +207,7 @@ internal sealed class AppsWindow : Form
             var item = new ListViewItem(a.Label + (a.IsDisabled ? " (disabled)" : "")) { Tag = a, ImageKey = a.IconKey };
             item.SubItems.Add(a.VersionName);
             item.SubItems.Add(a.TotalBytes > 0 ? PhoneFiles.FormatSize(a.TotalBytes) : "");
-            item.SubItems.Add(a.Updated.ToUnixTimeMilliseconds() > 100_000 ? a.Updated.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture) : "");
+            item.SubItems.Add(a.Updated.Year >= 2009 ? a.Updated.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture) : "");
             item.SubItems.Add(a.Package);
             if (a.IsDisabled) item.ForeColor = SystemColors.GrayText;
             _list.Items.Add(item);

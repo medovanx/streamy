@@ -30,6 +30,7 @@ internal static class DevSwitches
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
             ["--map-test", var png] => MapTest(png),
+            ["--apps-window", var serial] => RunWindow(new UI.AppsWindow(serial, "Phone")),
             ["--console-test", var serial, var outFile] => ConsoleTest(serial, outFile),
             ["--notify-test", var serial, var outFile] => Report(outFile, sb => NotifyTestAsync(sb, serial)),
             ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
@@ -406,6 +407,13 @@ internal static class DevSwitches
         sb.AppendLine(logOk && shellOk ? "result: ok" : "result: failed");
         File.WriteAllText(outFile, sb.ToString());
         return logOk && shellOk ? 0 : 1;
+    }
+
+    /// <summary>Opens one window on its own, for looking at it (screenshots of a single window).</summary>
+    private static int RunWindow(Form window)
+    {
+        Application.Run(window);
+        return 0;
     }
 
     private static int RenderIcon(string dir)

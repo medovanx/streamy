@@ -144,7 +144,7 @@ internal sealed class MapView : Control
             {
                 var dest = new Rectangle((int)Math.Round(tx * (double)_tile - left), (int)Math.Round(ty * (double)_tile - top), _tile, _tile);
                 if (_tiles.Get(z, tx, ty) is { } bmp) g.DrawImage(bmp, dest);
-                else if (Parent(z, tx, ty, out var src) is { } parent) g.DrawImage(parent, dest, src, GraphicsUnit.Pixel); // a lower zoom's tile, enlarged, until this one arrives
+                else if (ParentTile(z, tx, ty, out var src) is { } parent) g.DrawImage(parent, dest, src, GraphicsUnit.Pixel); // a lower zoom's tile, enlarged, until this one arrives
             }
         }
         DrawPins(g, left, top);
@@ -159,7 +159,7 @@ internal sealed class MapView : Control
     }
 
     /// <summary>The nearest lower zoom's tile that is ready, and the part of it covering this tile.</summary>
-    private Bitmap? Parent(int z, int x, int y, out Rectangle src)
+    private Bitmap? ParentTile(int z, int x, int y, out Rectangle src)
     {
         src = Rectangle.Empty;
         for (int up = 1; up <= 4 && z - up >= 0; up++)
