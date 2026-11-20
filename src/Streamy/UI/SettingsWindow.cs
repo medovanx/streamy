@@ -19,6 +19,8 @@ internal sealed class SettingsWindow : Form
     private readonly CheckBox _screenOff = Check("Turn the phone's screen off when mirroring starts");
     private readonly CheckBox _lockOnClose = Check("Lock the phone when its window closes");
     private readonly CheckBox _onTop = Check("Keep phone windows on top");
+    private readonly CheckBox _reconnect = Check("Reconnect by itself when a phone's connection drops");
+    private readonly CheckBox _notifications = Check("Show the phone's notifications on this PC");
     private readonly TextBox _shots = new() { Width = 260 };
     private readonly TextBox _recordings = new() { Width = 260 };
     private readonly CheckBox _updates = Check("Check for updates when Streamy starts");
@@ -31,7 +33,7 @@ internal sealed class SettingsWindow : Form
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = MinimizeBox = false;
-        ClientSize = new Size(560, 720);
+        ClientSize = new Size(560, 790);
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -48,6 +50,8 @@ internal sealed class SettingsWindow : Form
         Row("", _stayAwake);
         Row("", _screenOff);
         Row("", _lockOnClose);
+        Row("", _reconnect);
+        Row("", _notifications);
         Section("Windows and files");
         Row("", _onTop);
         Row("Screenshots", FolderPicker(_shots, SaveFolders.Default(Environment.SpecialFolder.MyPictures)));
@@ -87,6 +91,8 @@ internal sealed class SettingsWindow : Form
         _screenOff.Checked = _s.TurnScreenOff;
         _lockOnClose.Checked = _s.PowerOffOnClose;
         _onTop.Checked = _s.AlwaysOnTop;
+        _reconnect.Checked = _s.AutoReconnect;
+        _notifications.Checked = _s.PhoneNotifications;
         _shots.Text = _s.ScreenshotFolder ?? "";
         _recordings.Text = _s.RecordingFolder ?? "";
         _updates.Checked = _s.CheckForUpdates;
@@ -105,6 +111,8 @@ internal sealed class SettingsWindow : Form
         _s.TurnScreenOff = _screenOff.Checked;
         _s.PowerOffOnClose = _lockOnClose.Checked;
         _s.AlwaysOnTop = _onTop.Checked;
+        _s.AutoReconnect = _reconnect.Checked;
+        _s.PhoneNotifications = _notifications.Checked;
         _s.ScreenshotFolder = string.IsNullOrWhiteSpace(_shots.Text) ? null : _shots.Text.Trim();
         _s.RecordingFolder = string.IsNullOrWhiteSpace(_recordings.Text) ? null : _recordings.Text.Trim();
         _s.CheckForUpdates = _updates.Checked;

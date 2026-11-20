@@ -28,6 +28,15 @@ internal sealed class SessionWindow : Form
     private ulong _clipboardSequence;
 
     private readonly string _name;
+    private string? _stats;
+    private DateTime _statsAt;
+    private bool _closing;
+    private bool _lowWarned;
+
+    /// <summary>The session ended without the user closing the window; the device list tries to bring it back.</summary>
+    public event Action<SessionWindow>? ConnectionLost;
+
+    public MirrorSession Session => _session;
 
     /// <param name="title">The window's name; the phone's name when null. App windows pass "App on Phone".</param>
     public SessionWindow(MirrorSession session, string? title = null)
@@ -51,11 +60,23 @@ internal sealed class SessionWindow : Form
 
         _session.SizeChanged += (w, h) => BeginInvoke(() => FitTo(new Size(w, h), center: false));
         _session.DeviceMessageReceived += OnDeviceMessage;
-        _session.Ended += ex => BeginInvoke(() =>
+        _session.Ended += ex =>
         {
-            Text = $"{_name} - disconnected";
-            if (ex is not null && !IsDisposed) MessageBox.Show(this, ex.Message, "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        });
+            if (_closing || IsDisposed || !IsHandleCreated) return;
+            BeginInvoke(() =>
+            {
+                if (_closing || IsDisposed) return;
+                _timer.Stop();
+                if (ConnectionLost is not null && AppSettings.Current.AutoReconnect)
+                {
+                    Text = $"{_name} - connection lost, reconnecting - Streamy";
+                    ConnectionLost(this);
+                    return;
+                }
+                Text = $"{_name} - disconnected";
+                if (ex is not null) MessageBox.Show(this, ex.Message, "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            });
+        };
         _view.Resize += (_, _) =>
         {
             UpdateMapper();
@@ -402,13 +423,36 @@ internal sealed class SessionWindow : Form
         _input.View = new ViewMapper(_view.ClientSize.Width, _view.ClientSize.Height, frame.Width, frame.Height);
     }
 
+    /// <summary>Marks the title when reconnecting gave up.</summary>
+    public void ShowDisconnected(string why) => Text = $"{_name} - disconnected ({why})";
+
     private void UpdateTitle()
     {
         long presented = _renderer?.PresentedFrames ?? 0;
         string rec = _session.Recorder is { } r ? $" - REC {DateTime.Now - r.StartedAt:mm\\:ss}" : "";
         string flash = _flash is not null && DateTime.Now < _flashUntil ? " - " + _flash : "";
-        Text = $"{_name} - {presented - _lastPresented} fps{rec}{flash} - Streamy";
+        string stats = _stats is not null ? " - " + _stats : "";
+        Text = $"{_name} - {presented - _lastPresented} fps{stats}{rec}{flash} - Streamy";
+        if (DateTime.Now - _statsAt > TimeSpan.FromSeconds(30)) _ = RefreshStatsAsync();
         _lastPresented = presented;
+    }
+
+    /// <summary>Battery level, charging and temperature for the title, every 30 seconds.</summary>
+    private async Task RefreshStatsAsync()
+    {
+        _statsAt = DateTime.Now;
+        try
+        {
+            var r = await AdbClient.Default.RunAsync(["shell", Core.Adb.DeviceInfo.StatsScript], _session.Serial, TimeSpan.FromSeconds(10));
+            var info = Core.Adb.DeviceInfo.Parse(r.Output);
+            _stats = info.ShortBattery;
+            if (info.BatteryLevel is <= 15 && info.BatteryStatus is not "Charging" && !_lowWarned)
+            {
+                _lowWarned = true;
+                Flash("Phone battery low", seconds: 10);
+            }
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or InvalidOperationException) { }
     }
 
     /// <summary>
@@ -459,6 +503,12 @@ internal sealed class SessionWindow : Form
         base.OnResizeEnd(e);
         if (FormBorderStyle != FormBorderStyle.None)
             _preferredLongSide = Math.Max(_view.ClientSize.Width, _view.ClientSize.Height);
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        _closing = true;
+        base.OnFormClosing(e);
     }
 
     protected override async void OnFormClosed(FormClosedEventArgs e)

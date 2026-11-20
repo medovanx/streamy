@@ -323,10 +323,7 @@ internal sealed class MainWindow : Form
         try
         {
             await session.StartAsync();
-            var window = new SessionWindow(session);
-            _open[serial] = window;
-            window.FormClosed += (_, _) => { _open.Remove(serial); _ = RefreshAsync(); };
-            window.Show();
+            Track(new SessionWindow(session), serial, displayName).Show();
             SetIdle($"Mirroring {session.DeviceName}.");
         }
         catch (Exception ex)
@@ -337,6 +334,73 @@ internal sealed class MainWindow : Form
             MessageBox.Show(this, ex.Message, "Streamy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         await RefreshAsync();
+    }
+
+    /// <summary>Registers a phone window and brings its session back when the connection drops.</summary>
+    private SessionWindow Track(SessionWindow window, string serial, string? displayName)
+    {
+        _open[serial] = window;
+        window.FormClosed += (_, _) =>
+        {
+            // A reconnect replaces the window: only forget the phone if this is still its window.
+            if (_open.TryGetValue(serial, out var current) && current == window) _open.Remove(serial);
+            _ = RefreshAsync();
+        };
+        window.ConnectionLost += w => _ = ReconnectAsync(w, serial, displayName);
+        return window;
+    }
+
+    /// <summary>
+    /// The phone's connection dropped (Wi-Fi out of range, cable pulled, phone restarted). Keep its window with the
+    /// last picture, and for up to two minutes look for the phone (reconnecting Wi-Fi ones); once it is back, start
+    /// a new session in a new window at the same place and close the old one.
+    /// </summary>
+    private async Task ReconnectAsync(SessionWindow old, string serial, string? displayName)
+    {
+        Log.Info($"connection to {serial} lost; reconnecting");
+        bool wireless = serial.Contains(':');
+        var until = DateTime.UtcNow.AddMinutes(2);
+        string why = "the phone did not come back within two minutes";
+        while (DateTime.UtcNow < until)
+        {
+            await Task.Delay(3000);
+            if (old.IsDisposed) return; // the user closed it: stop trying
+            try
+            {
+                if (wireless) await AdbClient.Default.ConnectAsync(serial);
+                var devices = await AdbClient.Default.DevicesAsync();
+                if (!devices.Any(d => d.Serial == serial && d.IsReady)) continue;
+                var session = new MirrorSession(AdbClient.Default, serial, AppSettings.Current.ToServerOptions());
+                try
+                {
+                    await session.StartAsync();
+                }
+                catch (Exception ex)
+                {
+                    await session.DisposeAsync();
+                    Log.Info($"reconnect {serial}: {ex.Message}");
+                    why = ex.Message;
+                    continue;
+                }
+                if (old.IsDisposed) { await session.DisposeAsync(); return; }
+                var window = Track(new SessionWindow(session), serial, displayName);
+                window.StartPosition = FormStartPosition.Manual;
+                var bounds = old.Bounds;
+                var state = old.WindowState;
+                window.Show();
+                window.Bounds = bounds;
+                if (state == FormWindowState.Maximized) window.WindowState = state;
+                old.Close();
+                Log.Info($"reconnected {serial}");
+                await RefreshAsync();
+                return;
+            }
+            catch (Exception ex) when (ex is TimeoutException or IOException or InvalidOperationException)
+            {
+                why = ex.Message;
+            }
+        }
+        if (!old.IsDisposed) old.ShowDisconnected(why);
     }
 
     // ---- Wi-Fi --------------------------------------------------------------------------------------------

@@ -41,6 +41,14 @@ public sealed partial record DeviceInfo
         "echo ---GLES; dumpsys SurfaceFlinger | grep -m1 'GLES:'; echo ---BAT; dumpsys battery; " +
         "echo ---WM; wm size; wm density; echo ---CPU; nproc; cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq; echo ---END";
 
+    /// <summary>The changing part only (battery, storage, memory), for refreshing a phone window's title.</summary>
+    public const string StatsScript = "echo ---MEM; cat /proc/meminfo; echo ---DF; df -k /data; echo ---BAT; dumpsys battery; echo ---END";
+
+    /// <summary>"87% charging, 31 °C" for a window title; null when the battery is unknown.</summary>
+    public string? ShortBattery => BatteryLevel is not { } level ? null
+        : $"{level}%{(BatteryStatus is "Charging" ? " charging" : BatteryStatus is "Full" ? " full" : "")}"
+          + (BatteryTempC is { } c ? ", " + c.ToString("0", CultureInfo.InvariantCulture) + " °C" : "");
+
     public static DeviceInfo Parse(string output)
     {
         var sections = SplitSections(output);

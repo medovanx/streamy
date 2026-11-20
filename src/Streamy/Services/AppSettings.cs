@@ -57,6 +57,12 @@ public sealed class AppSettings
 
     public bool AlwaysOnTop { get; set; }
 
+    /// <summary>When a phone's connection drops (Wi-Fi, cable), keep its window and reopen the session once it is back.</summary>
+    public bool AutoReconnect { get; set; } = true;
+
+    /// <summary>Show the phone's new notifications as Windows notifications while Streamy runs.</summary>
+    public bool PhoneNotifications { get; set; }
+
     /// <summary>Folder for screenshots; null means Pictures\Streamy.</summary>
     public string? ScreenshotFolder { get; set; }
 
