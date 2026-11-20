@@ -69,6 +69,9 @@ public sealed class AppSettings
 
     public List<SavedDevice> SavedDevices { get; set; } = [];
 
+    /// <summary>Gallery backup folder per phone serial.</summary>
+    public Dictionary<string, string> BackupFolders { get; set; } = [];
+
     public static AppSettings Current { get; } = Load();
 
     /// <summary>The server options for a new session from these settings.</summary>

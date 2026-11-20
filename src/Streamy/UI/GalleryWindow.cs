@@ -53,6 +53,15 @@ internal sealed class GalleryWindow : Form
         _grid.SelectionChanged += () => { UpdateState(); _details.ShowSelection(_grid.Selected); };
         _grid.ItemActivated += View;
         _grid.DeleteRequested += async () => await DeleteSelectedAsync();
+        _grid.DragOut += items =>
+        {
+            if (_busy || items.Count == 0) return;
+            var data = new PhoneFileDrag(_serial, items);
+            _status.Text = $"Drop to copy {Count(items.Count)} to the PC";
+            bool dropped = data.Run();
+            _status.Text = dropped ? $"Copied {Count(items.Count)} to where they were dropped" : "";
+            UpdateState();
+        };
         _grid.ContextMenuStrip = BuildMenu();
 
         _albums.ItemHeight = (int)Math.Round(30 * DeviceDpi / 96.0);
@@ -65,6 +74,12 @@ internal sealed class GalleryWindow : Form
         _download = Button("Download", Glyph.Download, async () => await DownloadSelectedAsync(), bar);
         Button("Upload", Glyph.Upload, async () => await UploadAsync(), bar);
         _delete = Button("Delete", Glyph.Delete, async () => await DeleteSelectedAsync(), bar);
+        var backup = Button("Back up", Glyph.Backup, () => { BackUp(changeFolder: false); return Task.CompletedTask; }, bar);
+        var backupMenu = new ContextMenuStrip();
+        backupMenu.Items.Add("Back up now", null, (_, _) => BackUp(changeFolder: false));
+        backupMenu.Items.Add("Change backup folder", null, (_, _) => BackUp(changeFolder: true));
+        backup.ContextMenuStrip = backupMenu;
+        _tips.SetToolTip(backup, "Copy every photo and video to a folder on this PC; later backups copy only what is new (right-click: change the folder)");
 
         var split = new Splitter { Dock = DockStyle.Left, Width = 3, BackColor = Color.FromArgb(0x30, 0x30, 0x30) };
         Controls.Add(_grid);
@@ -238,6 +253,38 @@ internal sealed class GalleryWindow : Form
         {
             SetBusy(false);
         }
+    }
+
+    private readonly ToolTip _tips = new();
+    private BackupWindow? _backup;
+
+    /// <summary>Backs up the whole library (every album) to this phone's backup folder, asking for it the first time.</summary>
+    private void BackUp(bool changeFolder)
+    {
+        if (_backup is { IsDisposed: false })
+        {
+            _backup.Activate();
+            return;
+        }
+        if (_all.Count == 0) { Report("Nothing to back up yet"); return; }
+        var folders = AppSettings.Current.BackupFolders;
+        if (changeFolder || !folders.TryGetValue(_serial, out var folder))
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = $"Back up {_deviceName}'s photos and videos to",
+                UseDescriptionForTitle = true,
+                SelectedPath = folders.TryGetValue(_serial, out var old) ? old : GalleryBackup.DefaultFolder(_deviceName),
+            };
+            Directory.CreateDirectory(dlg.SelectedPath);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            folder = dlg.SelectedPath;
+            folders[_serial] = folder;
+            AppSettings.Current.Save();
+        }
+        _backup = new BackupWindow(_serial, _deviceName, _all, folder);
+        _backup.Finished += summary => Report(summary);
+        _backup.Show(this);
     }
 
     private async Task DownloadSelectedAsync()

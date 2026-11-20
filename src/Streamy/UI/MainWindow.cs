@@ -110,6 +110,7 @@ internal sealed class MainWindow : Form
             await RefreshAsync();
             _poll.Start();
             Updater.CleanupOld();
+            PhoneFileDrag.CleanUp();
             if (AppSettings.Current.CheckForUpdates) await UpdateCheck.RunAsync(this, quiet: true);
         };
     }

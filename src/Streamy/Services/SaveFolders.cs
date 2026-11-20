@@ -11,11 +11,14 @@ public static class SaveFolders
 
     public static string Recordings => Resolve(AppSettings.Current.RecordingFolder, Environment.SpecialFolder.MyVideos, "Recordings");
 
+    /// <summary>Where gallery backups go unless the user picks a folder: Pictures\Streamy backup.</summary>
+    public static string Backups => Resolve(null, Environment.SpecialFolder.MyPictures, "Backup", "Streamy backup");
+
     public static string Default(Environment.SpecialFolder known) => Path.Combine(Environment.GetFolderPath(known), "Streamy");
 
-    private static string Resolve(string? chosen, Environment.SpecialFolder known, string fallbackName)
+    private static string Resolve(string? chosen, Environment.SpecialFolder known, string fallbackName, string knownName = "Streamy")
     {
-        foreach (var dir in new[] { chosen, Default(known) })
+        foreach (var dir in new[] { chosen, Path.Combine(Environment.GetFolderPath(known), knownName) })
         {
             if (string.IsNullOrWhiteSpace(dir)) continue;
             if (CanWrite(dir)) return dir;

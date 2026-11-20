@@ -30,6 +30,8 @@ internal static class DevSwitches
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
             ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
+            ["--drag-test", var serial, var outFile] => Report(outFile, sb => DragTestAsync(sb, serial)),
+            ["--backup-test", var serial, var outFile] => Report(outFile, sb => BackupTestAsync(sb, serial)),
             ["--send", var serial, var outFile, .. var files] => Report(outFile, async sb =>
             {
                 var r = await FileSender.SendAsync(serial, files, progress: line => sb.AppendLine(line));
@@ -264,6 +266,63 @@ internal static class DevSwitches
         var displays = (await AdbClient.Default.ShellAsync(serial, ["dumpsys display | grep -c 'scrcpy'"])).Output.Trim();
         sb.AppendLine($"  displays named scrcpy while open: {displays}");
         sb.AppendLine("  server log: " + string.Join(" | ", session.ServerLog.Split((char)10).Where(l => l.Contains("display", StringComparison.OrdinalIgnoreCase) || l.Contains("ERROR")).Take(4)));
+        return ok;
+    }
+
+    /// <summary>
+    /// Drags the two newest photos onto a temporary folder through Explorer's own drop target and checks that the
+    /// files arrive, and that nothing is copied from the phone before the drop. The folder is deleted afterwards.
+    /// </summary>
+    private static async Task<bool> DragTestAsync(StringBuilder sb, string serial)
+    {
+        var photos = (await AdbClient.Default.QueryMediaAsync(serial)).Where(i => !i.IsVideo).Take(2).ToList();
+        var folder = Path.Combine(Path.GetTempPath(), "streamy-drop-test-" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var data = new UI.PhoneFileDrag(serial, photos);
+            var effect = ShellDrop.DropOn(folder, data, line => sb.AppendLine($"  {line}, files asked for {data.Requests} time(s), drag folder exists: {Directory.Exists(Path.Combine(Path.GetTempPath(), "Streamy drag")) && Directory.GetDirectories(Path.Combine(Path.GetTempPath(), "Streamy drag")).Any(d => Directory.GetFiles(d).Length > 0 && Directory.GetCreationTimeUtc(d) > DateTime.UtcNow.AddMinutes(-1))}"),
+                beforeDrop: () => data.Dropping = true);
+            for (int i = 0; i < 40 && Directory.GetFiles(folder).Length < photos.Count; i++) await Task.Delay(250);
+            var got = Directory.GetFiles(folder).Select(f => new FileInfo(f)).ToList();
+            bool sizes = photos.All(p => got.Any(f => f.Name == p.Name && f.Length == p.Size));
+            sb.AppendLine($"{(sizes ? "ok  " : "FAIL")} {got.Count} of {photos.Count} files in the folder with the phone's sizes (effect {effect})");
+            return sizes;
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    /// <summary>Backs up the 12 newest items to a temporary folder twice: the second run must copy nothing.</summary>
+    private static async Task<bool> BackupTestAsync(StringBuilder sb, string serial)
+    {
+        var items = (await AdbClient.Default.QueryMediaAsync(serial)).Where(i => i.Size < 50_000_000).Take(12).ToList();
+        var folder = Path.Combine(Path.GetTempPath(), "streamy-backup-test-" + Guid.NewGuid().ToString("N")[..6]);
+        bool ok = true;
+        void Check(string what, bool cond) { sb.AppendLine($"{(cond ? "ok  " : "FAIL")} {what}"); ok &= cond; }
+        try
+        {
+            int reports = 0;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var first = await GalleryBackup.RunAsync(serial, items, folder, new Progress<GalleryBackup.Progress>(_ => reports++), CancellationToken.None);
+            Check($"first run: {first.Copied} copied, {first.Skipped} skipped, {first.Failures.Count} failed, {Core.Files.PhoneFiles.FormatSize(first.Bytes)} in {watch.ElapsedMilliseconds} ms, {reports} progress reports",
+                first.Copied == items.Count && first.Failures.Count == 0);
+            var sample = Core.Media.MediaBackup.RelativePath(items[0]);
+            Check($"kept the phone's folders: {sample}", File.Exists(Path.Combine(folder, sample)));
+            var stamp = File.GetLastWriteTimeUtc(Path.Combine(folder, sample));
+            Check($"kept the date: {stamp:yyyy-MM-dd} (phone {DateTimeOffset.FromUnixTimeSeconds(items[0].Modified):yyyy-MM-dd})",
+                Math.Abs((stamp - DateTimeOffset.FromUnixTimeSeconds(items[0].Modified).UtcDateTime).TotalMinutes) < 2);
+            File.WriteAllBytes(Path.Combine(folder, sample), [1, 2, 3]); // a copy cut short
+            watch.Restart();
+            var second = await GalleryBackup.RunAsync(serial, items, folder, new Progress<GalleryBackup.Progress>(_ => { }), CancellationToken.None);
+            Check($"second run: {second.Copied} copied (the damaged one), {second.Skipped} skipped, {watch.ElapsedMilliseconds} ms", second.Copied == 1 && second.Skipped == items.Count - 1);
+        }
+        finally
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
         return ok;
     }
 

@@ -25,6 +25,9 @@ internal sealed class GalleryGrid : Panel
     public event Action<MediaItem>? ItemActivated;
     public event Action? DeleteRequested;
 
+    /// <summary>The user dragged the selection out of the grid (to Explorer, the desktop, another app).</summary>
+    public event Action<IReadOnlyList<MediaItem>>? DragOut;
+
     public int TileSize { get; }
 
     public GalleryGrid()
@@ -228,6 +231,7 @@ internal sealed class GalleryGrid : Panel
     // Drag selection: a box drawn from where the mouse went down, in content coordinates so it keeps growing
     // while the grid auto-scrolls. Items under the box join the selection the drag started with.
     private Point? _pressAt;            // content coordinates of the left-button press
+    private bool _pressOnSelection;     // the press was on a photo that was already selected: a drag takes files out
     private bool _marquee;
     private Point _marqueeEnd;          // content coordinates
     private HashSet<long> _marqueeBase = [];
@@ -252,6 +256,15 @@ internal sealed class GalleryGrid : Panel
         {
             var drag = SystemInformation.DragSize;
             if (Math.Abs(here.X - start.X) < drag.Width && Math.Abs(here.Y - start.Y) < drag.Height) return;
+            if (_pressOnSelection)
+            {
+                // Dragging a selected photo takes the whole selection out of the window as files.
+                _pressAt = null;
+                _pressOnSelection = false;
+                Capture = false;
+                DragOut?.Invoke(Selected);
+                return;
+            }
             _marquee = true;
             _marqueeBase = (ModifierKeys & Keys.Control) != 0 ? [.. _selected] : [];
             _autoScroll.Start();
@@ -267,6 +280,12 @@ internal sealed class GalleryGrid : Panel
     {
         base.OnMouseUp(e);
         if (e.Button != MouseButtons.Left) return;
+        if (_pressOnSelection && _pressAt is not null && HitTest(e.Location) is int hit and >= 0)
+        {
+            // A plain click on an already selected photo (no drag) selects just that one, as usual.
+            SelectOnly(hit);
+        }
+        _pressOnSelection = false;
         if (_marquee)
         {
             _marquee = false;
@@ -342,6 +361,14 @@ internal sealed class GalleryGrid : Panel
         }
         _pressAt = ToContent(e.Location);
         _marqueeEnd = _pressAt.Value;
+        if (i >= 0 && _selected.Contains(_items[i].Id) && (ModifierKeys & (Keys.Control | Keys.Shift)) == 0)
+        {
+            // Keep the selection until we know whether this is a click or a drag out.
+            _pressOnSelection = true;
+            _anchor = _focus = i;
+            Invalidate();
+            return;
+        }
         if (i < 0)
         {
             if ((ModifierKeys & (Keys.Control | Keys.Shift)) == 0) { _selected.Clear(); Changed(); }
