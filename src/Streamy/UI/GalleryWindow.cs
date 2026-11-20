@@ -74,11 +74,13 @@ internal sealed class GalleryWindow : Form
         _download = Button("Download", Glyph.Download, async () => await DownloadSelectedAsync(), bar);
         Button("Upload", Glyph.Upload, async () => await UploadAsync(), bar);
         _delete = Button("Delete", Glyph.Delete, async () => await DeleteSelectedAsync(), bar);
+        var map = Button("Map", Glyph.Map, () => { ShowMap(); return Task.CompletedTask; }, bar);
         var backup = Button("Back up", Glyph.Backup, () => { BackUp(changeFolder: false); return Task.CompletedTask; }, bar);
         var backupMenu = new ContextMenuStrip();
         backupMenu.Items.Add("Back up now", null, (_, _) => BackUp(changeFolder: false));
         backupMenu.Items.Add("Change backup folder", null, (_, _) => BackUp(changeFolder: true));
         backup.ContextMenuStrip = backupMenu;
+        _tips.SetToolTip(map, "Where the photos and videos were taken, on a map (tiles from OpenStreetMap)");
         _tips.SetToolTip(backup, "Copy every photo and video to a folder on this PC; later backups copy only what is new (right-click: change the folder)");
 
         var split = new Splitter { Dock = DockStyle.Left, Width = 3, BackColor = Color.FromArgb(0x30, 0x30, 0x30) };
@@ -256,6 +258,33 @@ internal sealed class GalleryWindow : Form
     }
 
     private readonly ToolTip _tips = new();
+    private MapWindow? _map;
+
+    private void ShowMap()
+    {
+        if (_map is { IsDisposed: false }) { _map.Activate(); return; }
+        var located = _all.Select(i => (Item: i, Point: _locations.Point(i))).Where(l => l.Point is not null).Select(l => (l.Item, l.Point!.Value)).ToList();
+        if (located.Count == 0)
+        {
+            Report(_scanStatus is not null ? "Still finding where photos were taken; try the map again in a moment" : "No photos or videos with a location");
+            return;
+        }
+        if (!MapWindow.Consent(this)) return;
+        _map = new MapWindow(_deviceName, located, _loader, ShowItems);
+        _map.Show(this);
+    }
+
+    /// <summary>Shows a set of items (a map pin's) in the grid, outside the album list.</summary>
+    private void ShowItems(IReadOnlyList<MediaItem> items, string label)
+    {
+        _suppressAlbumChange = true;
+        _albums.ClearSelected();
+        _suppressAlbumChange = false;
+        _grid.Items = items;
+        Report(label);
+        Activate();
+    }
+
     private BackupWindow? _backup;
 
     /// <summary>Backs up the whole library (every album) to this phone's backup folder, asking for it the first time.</summary>

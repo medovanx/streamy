@@ -29,6 +29,7 @@ internal static class DevSwitches
             ["--gallery", var serial, var outFile] => Report(outFile, sb => GalleryTestAsync(sb, serial)),
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
+            ["--map-test", var png] => MapTest(png),
             ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
             ["--drag-test", var serial, var outFile] => Report(outFile, sb => DragTestAsync(sb, serial)),
             ["--backup-test", var serial, var outFile] => Report(outFile, sb => BackupTestAsync(sb, serial)),
@@ -324,6 +325,41 @@ internal static class DevSwitches
             if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
         }
         return ok;
+    }
+
+    /// <summary>
+    /// Draws the map with made-up pins (around Paris and Lyon, no phone needed) into a PNG once the tiles are in,
+    /// to check tiles, pins, clustering and the credit line.
+    /// </summary>
+    private static int MapTest(string png)
+    {
+        var rnd = new Random(7);
+        var located = new List<(Core.Media.MediaItem, Core.Media.GeoPoint)>();
+        for (int i = 0; i < 60; i++)
+        {
+            var (lat, lon) = i % 3 == 0 ? (45.76, 4.84) : (48.857, 2.352);
+            var item = new Core.Media.MediaItem(i, $"/sdcard/DCIM/x{i}.jpg", "Camera", DateTimeOffset.UnixEpoch.AddDays(i), 0, 1, 0, 0, "image/jpeg", false, 0);
+            located.Add((item, new Core.Media.GeoPoint(lat + rnd.NextDouble() * 0.05, lon + rnd.NextDouble() * 0.05)));
+        }
+        using var form = new Form { ClientSize = new Size(900, 600), ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Location = new Point(-3000, -3000) };
+        var map = new UI.MapView(located, null) { Dock = DockStyle.Fill };
+        int tiles = 0;
+        map.TileArrived += () => Interlocked.Increment(ref tiles);
+        form.Controls.Add(map);
+        form.Show();
+        var until = DateTime.Now.AddSeconds(20);
+        using var bmp = new Bitmap(map.Width, map.Height);
+        // An off-screen window gets no paint messages: drawing into the bitmap paints it and asks for the tiles.
+        while (DateTime.Now < until && tiles < 40)
+        {
+            map.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+            for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        }
+        Application.DoEvents();
+        map.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+        bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        Console.WriteLine($"tiles {tiles}");
+        return tiles > 0 ? 0 : 1;
     }
 
     private static int RenderIcon(string dir)

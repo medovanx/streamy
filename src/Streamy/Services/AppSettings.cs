@@ -69,6 +69,9 @@ public sealed class AppSettings
 
     public List<SavedDevice> SavedDevices { get; set; } = [];
 
+    /// <summary>The user agreed to load map tiles from OpenStreetMap for the gallery's map.</summary>
+    public bool MapConsent { get; set; }
+
     /// <summary>Gallery backup folder per phone serial.</summary>
     public Dictionary<string, string> BackupFolders { get; set; } = [];
 
