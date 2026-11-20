@@ -1,6 +1,6 @@
 # Streamy: Software Requirements Specification
 
-Status: 1.3.0. Last updated 2026-11-20.
+Status: 1.4.0. Last updated 2026-11-20.
 
 ## 1. Purpose
 
@@ -66,6 +66,10 @@ All are done in 1.0.0 unless marked otherwise.
 - FR-40 Drop an APK to install it; drop any other file to copy it to `/sdcard/Download` and scan it into the gallery.
 - FR-41 Two-way clipboard: phone to PC automatically, PC to phone on Ctrl+V.
 - FR-43 Gallery: photos and videos by album from Android's MediaStore (`content query`), phone-made thumbnails (`content read …/thumbnail`, so HEIC and video need no PC codecs) cached on disk, open, download, upload with media scan, delete through MediaStore. **Done in 1.3.0.**
+- FR-44 Built-in viewer: swipe through photos and videos inside the gallery (drag, wheel, keys); photos decoded with Windows Imaging (EXIF orientation, HEIC via the HEIF extension, phone thumbnail as a fallback); videos played with Windows.Media.Playback in frame-server mode into Direct3D 11, with play/pause, seek and mute. **Done in 1.4.0.**
+- FR-45 Drag-to-select in the gallery grid, with auto-scroll. **Done in 1.4.0.**
+- FR-46 Metadata panel for the selection (MediaStore columns read per item without naming columns older Android lacks). **Done in 1.4.0.**
+- FR-47 Places: GPS from EXIF (JPEG head, HEIC tail) and MP4 ©xyz, read in batches of file slices over adb, cached per phone, named offline with GeoNames cities15000; filter by place; map link on request. **Done in 1.4.0.**
 - FR-42 File manager: browse the phone's storage, download, upload (button and drop from Explorer), new folder, rename without overwriting, delete with confirmation, open a file on the PC; unreadable folders say why. **Done in 1.1.0.**
 
 ### 3.6 Several devices
@@ -97,6 +101,8 @@ All are done in 1.0.0 unless marked otherwise.
 | 1.1.0 | File manager |
 | 1.2.0 | Update progress window, icons on buttons |
 | 1.3.0 | Gallery |
+| 1.3.1 | Icons centred with their text |
+| 1.4.0 | Viewer, drag-select, details panel, places |
 
 ## 6. Later
 

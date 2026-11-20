@@ -20,6 +20,9 @@ The exe also contains these .NET libraries, compiled in:
 | [NAudio](https://github.com/naudio/NAudio) 3.3.0 (Core, Wasapi) | MIT |
 | [QRCoder](https://github.com/codebude/QRCoder) 1.8.1 | MIT |
 
+`Streamy.Core` embeds data from [GeoNames](https://www.geonames.org) (`cities15000` and `countryInfo`), reduced to each
+place's name, country and position, under the [Creative Commons Attribution 4.0 License](https://creativecommons.org/licenses/by/4.0/).
+
 The FFmpeg DLLs are loaded dynamically and can be replaced: put compatible DLLs of the same names in the folder above.
 Their source code is available from [ffmpeg.org](https://ffmpeg.org/download.html); scrcpy's build scripts are in
 [its repository](https://github.com/Genymobile/scrcpy/tree/v5.0.1/app/deps).

@@ -35,6 +35,13 @@ internal sealed class GalleryGrid : Panel
         BackColor = Back;
         SetStyle(ControlStyles.Selectable | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
         TabStop = true;
+        _autoScroll.Tick += (_, _) => AutoScrollTick();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _autoScroll.Dispose();
+        base.Dispose(disposing);
     }
 
     public ThumbnailLoader? Loader
@@ -185,8 +192,18 @@ internal sealed class GalleryGrid : Panel
                 using var white = new Pen(Color.White, 2.2f);
                 g.DrawLines(white, [new PointF(tick.X + 6, tick.Y + 11.5f), new PointF(tick.X + 9.5f, tick.Y + 15), new PointF(tick.X + 16, tick.Y + 7.5f)]);
             }
-            if (i == _focus && Focused)
+            if (i == _focus && Focused && !_marquee)
                 ControlPaint.DrawFocusRectangle(g, Rectangle.Inflate(r, 2, 2));
+        }
+
+        if (_marquee)
+        {
+            var box = MarqueeRect;
+            box.Offset(0, AutoScrollPosition.Y);
+            using var fill = new SolidBrush(Color.FromArgb(50, Accent));
+            using var edge = new Pen(Accent, 1);
+            g.FillRectangle(fill, box);
+            g.DrawRectangle(edge, box);
         }
     }
 
@@ -207,6 +224,93 @@ internal sealed class GalleryGrid : Panel
 
     // ---- Selection ----------------------------------------------------------------------------------------
 
+    // Drag selection: a box drawn from where the mouse went down, in content coordinates so it keeps growing
+    // while the grid auto-scrolls. Items under the box join the selection the drag started with.
+    private Point? _pressAt;            // content coordinates of the left-button press
+    private bool _marquee;
+    private Point _marqueeEnd;          // content coordinates
+    private HashSet<long> _marqueeBase = [];
+    private readonly System.Windows.Forms.Timer _autoScroll = new() { Interval = 30 };
+
+    private Point ToContent(Point p) => new(p.X, p.Y - AutoScrollPosition.Y);
+
+    private Rectangle MarqueeRect => _pressAt is { } a
+        ? Rectangle.FromLTRB(Math.Min(a.X, _marqueeEnd.X), Math.Min(a.Y, _marqueeEnd.Y), Math.Max(a.X, _marqueeEnd.X), Math.Max(a.Y, _marqueeEnd.Y))
+        : Rectangle.Empty;
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        // A press is tracked from our own mouse down to mouse up (the control holds the capture in between).
+        if (_pressAt is not { } start) return;
+        var here = ToContent(e.Location);
+        if (!_marquee)
+        {
+            var drag = SystemInformation.DragSize;
+            if (Math.Abs(here.X - start.X) < drag.Width && Math.Abs(here.Y - start.Y) < drag.Height) return;
+            _marquee = true;
+            _marqueeBase = (ModifierKeys & Keys.Control) != 0 ? [.. _selected] : [];
+            _autoScroll.Start();
+        }
+        _lastMouse = e.Location;
+        _marqueeEnd = here;
+        ApplyMarquee();
+    }
+
+    private Point _lastMouse; // client coordinates of the latest drag position (the control has the mouse captured)
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (e.Button != MouseButtons.Left) return;
+        if (_marquee)
+        {
+            _marquee = false;
+            _autoScroll.Stop();
+            Invalidate();
+        }
+        _pressAt = null;
+    }
+
+    /// <summary>While dragging near the top or bottom edge, scroll so the box can reach items off screen.</summary>
+    private void AutoScrollTick()
+    {
+        if (!_marquee) { _autoScroll.Stop(); return; }
+        var p = _lastMouse;
+        int edge = TileSize / 3, step = 0;
+        if (p.Y < edge) step = -Math.Max(4, (edge - p.Y) / 2);
+        else if (p.Y > ClientSize.Height - edge) step = Math.Max(4, (p.Y - ClientSize.Height + edge) / 2);
+        if (step == 0) return;
+        AutoScrollPosition = new Point(0, Math.Max(0, -AutoScrollPosition.Y + step));
+        _marqueeEnd = ToContent(new Point(Math.Clamp(p.X, 0, ClientSize.Width), Math.Clamp(p.Y, 0, ClientSize.Height)));
+        RequestVisible();
+        ApplyMarquee();
+    }
+
+    private void ApplyMarquee()
+    {
+        var box = MarqueeRect;
+        _selected.Clear();
+        _selected.UnionWith(_marqueeBase);
+        // Only rows the box spans can intersect it.
+        int firstRow = Math.Max(0, (box.Top - Gap) / (TileSize + Gap)), lastRow = Math.Min(Rows - 1, box.Bottom / (TileSize + Gap));
+        for (int row = firstRow; row <= lastRow; row++)
+        {
+            for (int col = 0; col < Columns; col++)
+            {
+                int i = row * Columns + col;
+                if (i >= _items.Count) break;
+                var tile = new Rectangle(Gap + col * (TileSize + Gap), Gap + row * (TileSize + Gap), TileSize, TileSize);
+                if (tile.IntersectsWith(box))
+                {
+                    _selected.Add(_items[i].Id);
+                    _focus = i;
+                }
+            }
+        }
+        Changed();
+    }
+
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
@@ -218,6 +322,16 @@ internal sealed class GalleryGrid : Panel
             return;
         }
         if (e.Button != MouseButtons.Left) return;
+        // A double-click opens the item. Panel does not raise MouseDoubleClick, so count the clicks here.
+        if (e.Clicks >= 2 && i >= 0)
+        {
+            _pressAt = null;
+            SelectOnly(i);
+            ItemActivated?.Invoke(_items[i]);
+            return;
+        }
+        _pressAt = ToContent(e.Location);
+        _marqueeEnd = _pressAt.Value;
         if (i < 0)
         {
             if ((ModifierKeys & (Keys.Control | Keys.Shift)) == 0) { _selected.Clear(); Changed(); }
@@ -233,12 +347,6 @@ internal sealed class GalleryGrid : Panel
         else SelectOnly(i);
     }
 
-    protected override void OnMouseDoubleClick(MouseEventArgs e)
-    {
-        base.OnMouseDoubleClick(e);
-        int i = HitTest(e.Location);
-        if (i >= 0 && e.Button == MouseButtons.Left) ItemActivated?.Invoke(_items[i]);
-    }
 
     protected override bool IsInputKey(Keys keyData) =>
         (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down || base.IsInputKey(keyData);

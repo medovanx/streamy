@@ -74,5 +74,19 @@ public class MediaStoreTests
     }
 
     [Fact]
+    public void PlacesGroupMostPhotographedFirst()
+    {
+        string? Place(MediaItem i) => i.Id switch { 101 or 201 => "Cairo, Egypt", 103 => "Paris, France", _ => null };
+        var places = Places.Albums(Items, Place);
+        Assert.Equal(["Places", "Cairo, Egypt", "Paris, France"], places.Select(a => a.Name));
+        Assert.Equal(AlbumKind.Heading, places[0].Kind);
+        Assert.Equal(AlbumKind.Place, places[1].Kind);
+        Assert.Equal([201L, 101L], places[1].Items.Select(i => i.Id));
+    }
+
+    [Fact]
+    public void NoPlacesNoHeading() => Assert.Empty(Places.Albums(Items, _ => null));
+
+    [Fact]
     public void EmptyLibrary() => Assert.Empty(MediaStore.Parse("No result found.\n---VIDEOS\nNo result found."));
 }

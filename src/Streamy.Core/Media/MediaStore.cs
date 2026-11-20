@@ -39,9 +39,38 @@ public sealed record MediaItem(
 }
 
 /// <summary>An album: the items of one MediaStore bucket (usually one folder), newest first.</summary>
-public sealed record MediaAlbum(string Name, IReadOnlyList<MediaItem> Items)
+public sealed record MediaAlbum(string Name, IReadOnlyList<MediaItem> Items, AlbumKind Kind = AlbumKind.Album)
 {
     public MediaItem? Cover => Items.Count > 0 ? Items[0] : null;
+}
+
+/// <summary>What an entry in the album list is: a folder album, a place, or a section heading.</summary>
+public enum AlbumKind
+{
+    Album,
+    Place,
+    Heading,
+}
+
+public static class Places
+{
+    /// <summary>
+    /// Albums by place, most photographed first: a heading, then one entry per place name, each newest first.
+    /// Empty when no item has a place yet.
+    /// </summary>
+    public static IReadOnlyList<MediaAlbum> Albums(IEnumerable<MediaItem> items, Func<MediaItem, string?> placeOf)
+    {
+        var groups = items
+            .Select(i => (Item: i, Place: placeOf(i)))
+            .Where(x => x.Place is not null)
+            .GroupBy(x => x.Place!, StringComparer.Ordinal)
+            .Select(g => new MediaAlbum(g.Key, g.Select(x => x.Item).OrderByDescending(i => i.Taken).ToList(), AlbumKind.Place))
+            .OrderByDescending(a => a.Items.Count)
+            .ThenBy(a => a.Name, StringComparer.CurrentCulture)
+            .ToList();
+        if (groups.Count == 0) return [];
+        return [new MediaAlbum("Places", [], AlbumKind.Heading), .. groups];
+    }
 }
 
 /// <summary>Reads the phone's media library with the shell's "content" command and groups it into albums.</summary>

@@ -3,6 +3,15 @@
 All notable changes to Streamy are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-11-20
+
+### Added
+- Built-in viewer: photos and videos open inside the gallery and swipe like on the phone (drag sideways, mouse wheel, arrow keys, buttons). Photos show the phone's thumbnail at once and sharpen when the full picture arrives, with the next and previous ones prepared in the background; HEIC and other formats decode with Windows' own codecs, turned the way the camera recorded. Videos play in place with Windows' media engine (hardware decoding, HEVC and AV1 with their extensions) and Streamy's own play/pause, seek bar and mute. Download, open in another app, delete and fullscreen from the viewer.
+- Drag to select: draw a box across thumbnails to select several; Ctrl+drag adds to the selection; the grid scrolls when the box reaches its edge.
+- Details panel in the gallery: preview, date taken and added, album, type, size, resolution in megapixels, camera settings (aperture, shutter speed, ISO), rotation, the app that made it, favourite, location and path; a summary with total size, date range and places for a multiple selection.
+- Places: where photos and videos were taken is read from EXIF GPS and MP4 location tags (only a small part of each file, about a minute for 8,000 items over USB, remembered afterwards) and named offline with a built-in GeoNames city list. A **Places** section in the album list filters the gallery by place; the details show the place and coordinates with **Show on map** (OpenStreetMap, only when clicked); the viewer shows the place too.
+- `--viewer-test` and `--places` developer switches.
+
 ## [1.3.1] - 2026-11-20
 
 ### Fixed
@@ -94,6 +103,7 @@ First preview. It connects to phones and streams from them, but does not show th
 - `--probe SERIAL OUT [SECONDS]` developer switch: runs one session without a window and writes what came back.
 - CI on every push and a release workflow that publishes `Streamy.exe` for each `vX.Y.Z` tag.
 
+[1.4.0]: https://github.com/medovanx/streamy/releases/tag/v1.4.0
 [1.3.1]: https://github.com/medovanx/streamy/releases/tag/v1.3.1
 [1.3.0]: https://github.com/medovanx/streamy/releases/tag/v1.3.0
 [1.2.0]: https://github.com/medovanx/streamy/releases/tag/v1.2.0

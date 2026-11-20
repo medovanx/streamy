@@ -97,4 +97,7 @@ internal static class Glyph
     public static readonly string Cancel = G(0xE711);
     public static readonly string Check = G(0xE73E);
     public static readonly string Gallery = G(0xE91B);
+    public static readonly string Play = G(0xE768);
+    public static readonly string MapPin = G(0xE707);
+    public static readonly string Pause = G(0xE769);
 }

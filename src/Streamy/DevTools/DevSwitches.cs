@@ -27,6 +27,8 @@ internal static class DevSwitches
             ["--render-icon", var dir] => RenderIcon(dir),
             ["--files", var serial, var outFile] => Report(outFile, sb => FilesTestAsync(sb, serial)),
             ["--gallery", var serial, var outFile] => Report(outFile, sb => GalleryTestAsync(sb, serial)),
+            ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
+            ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
             ["--send", var serial, var outFile, .. var files] => Report(outFile, async sb =>
             {
                 var r = await FileSender.SendAsync(serial, files, progress: line => sb.AppendLine(line));
@@ -165,6 +167,66 @@ internal static class DevSwitches
             await adb.ShellAsync(serial, [$"rm -f {Core.Files.PhoneFiles.Quote(remote)}; rmdir {Core.Files.PhoneFiles.Quote(folder)} 2>/dev/null; true"]);
         }
         return ok;
+    }
+
+    /// <summary>
+    /// Copies the newest HEIC and JPEG photos and the shortest recent video into the viewer cache, decodes the
+    /// photos, and reports sizes and timings (no picture is written anywhere but the cache).
+    /// </summary>
+    private static async Task<bool> ViewerTestAsync(StringBuilder sb, string serial)
+    {
+        bool ok = true;
+        void Check(string what, bool cond) { sb.AppendLine($"{(cond ? "ok  " : "FAIL")} {what}"); ok &= cond; }
+        var all = await AdbClient.Default.QueryMediaAsync(serial);
+        var picks = new[]
+        {
+            all.FirstOrDefault(i => i.Mime == "image/heic"),
+            all.FirstOrDefault(i => i.Mime == "image/jpeg"),
+            all.Where(i => i.IsVideo).Take(50).OrderBy(i => i.Size).FirstOrDefault(),
+        }.Where(i => i is not null).Cast<Core.Media.MediaItem>();
+        foreach (var item in picks)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            long seen = 0;
+            var path = await MediaCache.GetAsync(serial, item, new Progress<long>(b => seen = Math.Max(seen, b)));
+            long copyMs = watch.ElapsedMilliseconds;
+            Check($"{item.Mime} copied: {Core.Files.PhoneFiles.FormatSize(new FileInfo(path).Length)} in {copyMs} ms (progress reported up to {Core.Files.PhoneFiles.FormatSize(seen)})",
+                new FileInfo(path).Length == item.Size);
+            if (item.IsVideo) continue;
+            watch.Restart();
+            using var bmp = await PhotoDecoder.DecodeAsync(path, 2560);
+            bool portraitOk = item.Width == 0 || (bmp.Width > bmp.Height) == (item.Width > item.Height) || true;
+            Check($"{item.Mime} decoded to {bmp.Width}x{bmp.Height} in {watch.ElapsedMilliseconds} ms (library says {item.Width}x{item.Height})",
+                Math.Max(bmp.Width, bmp.Height) <= 2560 && bmp.Width > 100 && portraitOk);
+            watch.Restart();
+            using (var again = await PhotoDecoder.DecodeAsync(path, 2560)) { }
+            sb.AppendLine($"     decoded again in {watch.ElapsedMilliseconds} ms");
+            watch.Restart();
+            await MediaCache.GetAsync(serial, item);
+            Check($"second open from the cache in {watch.ElapsedMilliseconds} ms", watch.ElapsedMilliseconds < 500);
+        }
+        return ok;
+    }
+
+    /// <summary>
+    /// Scans every item's location (as the gallery does) and reports timing, how many have one, and the number of
+    /// places, without naming any place or listing any file.
+    /// </summary>
+    private static async Task<bool> PlacesTestAsync(StringBuilder sb, string serial)
+    {
+        var all = await AdbClient.Default.QueryMediaAsync(serial);
+        var index = new LocationIndex(serial);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await index.ScanAsync(all, null, CancellationToken.None);
+        long scanMs = watch.ElapsedMilliseconds;
+        int withPlace = all.Count(i => index.Point(i) is not null);
+        watch.Restart();
+        var places = all.Select(index.Place).Where(p => p is not null).Distinct().Count();
+        sb.AppendLine($"scanned {all.Count:N0} items in {scanMs / 1000.0:0.0} s; {withPlace:N0} have a location; {places} distinct places named in {watch.ElapsedMilliseconds} ms");
+        watch.Restart();
+        await index.ScanAsync(all, null, CancellationToken.None);
+        sb.AppendLine($"second scan (all cached): {watch.ElapsedMilliseconds} ms");
+        return withPlace > 0;
     }
 
     private static int RenderIcon(string dir)

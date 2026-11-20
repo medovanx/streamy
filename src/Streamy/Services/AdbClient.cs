@@ -96,15 +96,19 @@ public sealed class AdbClient(string adbPath)
     }
 
     /// <summary>The raw bytes of a content URI (a thumbnail or a whole photo), through exec-out so nothing is altered.</summary>
-    public async Task<byte[]> ReadContentAsync(string serial, string uri, CancellationToken ct = default)
+    public Task<byte[]> ReadContentAsync(string serial, string uri, CancellationToken ct = default) =>
+        ExecOutAsync(serial, "content read --uri " + uri, TimeSpan.FromSeconds(30), ct);
+
+    /// <summary>Runs a shell command and returns its raw output bytes (exec-out: no line-ending changes).</summary>
+    public async Task<byte[]> ExecOutAsync(string serial, string command, TimeSpan timeout, CancellationToken ct = default)
     {
-        using var p = new Process { StartInfo = CreateStartInfo(["exec-out", "content read --uri " + uri], serial) };
+        using var p = new Process { StartInfo = CreateStartInfo(["exec-out", command], serial) };
         p.Start();
         using var ms = new MemoryStream();
         var copy = p.StandardOutput.BaseStream.CopyToAsync(ms, ct);
         var err = p.StandardError.ReadToEndAsync(ct);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        cts.CancelAfter(timeout);
         try
         {
             await p.WaitForExitAsync(cts.Token);

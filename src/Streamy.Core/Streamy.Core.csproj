@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- scrcpy protocol, adb output parsing, server options, geometry and key mapping with no Windows or UI dependencies, so it can be unit tested anywhere. -->
+  <!-- scrcpy protocol, adb output parsing, server options, geometry, key mapping and media metadata with no Windows or UI dependencies, so it can be unit tested anywhere. -->
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
     <RootNamespace>Streamy.Core</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Offline place names: GeoNames cities15000 and countryInfo (CC BY 4.0, https://www.geonames.org), reduced to name, country and position. -->
+    <EmbeddedResource Include="Media\Data\cities.tsv.gz" LogicalName="geo/cities.tsv.gz" />
+    <EmbeddedResource Include="Media\Data\countries.tsv" LogicalName="geo/countries.tsv" />
+  </ItemGroup>
 
 </Project>

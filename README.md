@@ -34,7 +34,8 @@ side by side, each in its own window.
 - **Mouse and keyboard.** Click to tap, drag to swipe, Ctrl + drag to pinch, the wheel to scroll. Right click is Back, middle click is Home. Typing goes to the phone as text, in whatever layout the PC uses (Arabic, accents and emoji go through the phone's clipboard and are pasted), and shortcuts like Ctrl+A or Ctrl+C work.
 - **Sound.** The phone's audio plays on the PC (Android 11+), kept in sync with the picture, with mute and volume.
 - **Record and capture.** Record the screen and sound to MP4 without re-encoding, or save a full-resolution screenshot that is also copied to the clipboard.
-- **Gallery.** The phone's photos and videos by album as a thumbnail grid (HEIC and videos included, no codecs needed on the PC). Open one on the PC, download a selection, upload into an album, or delete.
+- **Gallery.** The phone's photos and videos by album and by place, as a thumbnail grid (HEIC and videos included). Drag across thumbnails to select several. A side panel shows each item's details: date, size, resolution, camera settings, where it was taken. Download, upload or delete.
+- **Built-in viewer.** Open a photo or video and swipe through the album like on the phone: drag sideways, scroll the wheel or press the arrow keys. Videos play right there, with play/pause, a seek bar and mute.
 - **File manager.** Browse the phone's storage, download files and folders to the PC, upload by button or by dropping them from Explorer, create folders, rename and delete. Double-click a file to open it on the PC.
 - **Files and apps.** Drop APKs on a phone's window to install or update them; drop any other file to put it in the phone's Download folder, where Gallery and Files see it at once.
 - **Clipboard.** Copy on the phone, paste on the PC. Ctrl+V in the window pastes the PC's clipboard on the phone.
@@ -121,15 +122,33 @@ and Keep on top (right-click keeps every phone's window on top).
 ## Gallery
 
 Open it with **Gallery** in the main window, on a phone's right-click menu, or from its toolbar. Albums are on the left
-(all photos and videos, videos only, then the phone's albums by size), thumbnails on the right, newest first.
+(all photos and videos, videos only, the phone's albums by size, then **Places**), thumbnails in the middle, newest first,
+and the details of the selection on the right.
 
 | Action | How |
 | --- | --- |
-| Select | Click; Ctrl+click to add, Shift+click for a range, Ctrl+A for all, arrows to move |
-| Open on the PC | Double-click or Enter (it is copied to a temporary folder first) |
+| Select | Click; drag across thumbnails for several (Ctrl+drag adds); Ctrl+click, Shift+click, Ctrl+A, arrows |
+| View | Double-click, Enter or **View** opens the built-in viewer |
+| Open in another app | Right-click, **Open in app** |
+| Filter by place | Pick a place under **Places** |
 | Download | Select, **Download**, pick a folder |
 | Upload | **Upload** puts photos and videos into the open album's folder (`Pictures/Streamy` for the first two) and the phone indexes them at once |
 | Delete | **Delete** or the Delete key, after a confirmation. Deleted items do not go to the phone's trash |
+
+**Details panel:** date taken and added, album, type, size, resolution in megapixels, camera settings (aperture, shutter,
+ISO), rotation, the app that made it, favourite, the place and its coordinates with **Show on map**, and the path on the
+phone. With several selected: counts, total size, date range and the places they were taken.
+
+**Viewer:** swipe by dragging the picture sideways (or a video), the mouse wheel, the arrow keys, Page Up/Down, Home/End
+or the buttons. The phone's thumbnail shows at once and the full picture replaces it when it arrives (HEIC needs Windows'
+HEIF extension for full size); the next and previous photos are prepared in the background. Videos play inside the
+viewer with play/pause (or Space, or a click), a seek bar and mute. F11 or double-click is fullscreen, Esc leaves it or
+closes. Full-size copies are kept in `%LOCALAPPDATA%\Streamy\media` (up to 2 GB).
+
+**Places:** where each photo and video was taken is read from a small part of the file (EXIF GPS, or the location tag
+camera videos write) in the background the first time the gallery opens; this takes about a minute for 8,000 items
+over USB and is remembered afterwards. Coordinates are named offline with the [GeoNames](https://www.geonames.org)
+city list built into Streamy.
 
 Thumbnails are made by the phone, about one per second each, eight at a time, visible ones first. Each is kept in
 `%LOCALAPPDATA%\Streamy\thumbs`, so an album opens straight away the next time.
@@ -179,6 +198,9 @@ PC, over your own USB cable or local network.
 | Service | When | What it sends |
 | --- | --- | --- |
 | [GitHub API](https://docs.github.com/rest/releases) | Update checks (turn them off in Settings) | Nothing besides the request |
+| [OpenStreetMap](https://www.openstreetmap.org) | Only when you click **Show on map** in the gallery | The photo's coordinates, in the map address |
+
+Place names in the gallery are worked out on your PC from a built-in city list; no location is looked up online.
 
 ## How it works
 
@@ -199,7 +221,7 @@ streamy/
 │   ├── Streamy.Core/             Logic with no Windows or UI dependencies
 │   │   ├── Adb/                  adb output parsers, phone details, QR pairing
 │   │   ├── Files/                Phone folder listing, paths and shell quoting
-│   │   ├── Media/                Phone media library: photos, videos, albums
+│   │   ├── Media/                Phone media library, details, GPS from EXIF and MP4, offline place names
 │   │   ├── Geometry/             Fitting the frame in the window, window to phone coordinates
 │   │   ├── Input/                Android key codes, Windows key map, mouse/keyboard to control messages
 │   │   ├── Protocol/             scrcpy control and device messages, packet headers, config merging
@@ -212,7 +234,7 @@ streamy/
 │       ├── Services/             adb runner, bundled files, settings, file sending, updater, log
 │       ├── Session/              One mirroring session: tunnel, sockets, stream readers, control queue
 │       ├── ThirdParty/           adb, scrcpy-server, FFmpeg (downloaded, not committed)
-│       ├── UI/                   Device list, details, phone window, toolbar, gallery, file manager, settings, pairing
+│       ├── UI/                   Device list, details, phone window, toolbar, gallery, viewer, file manager, settings, pairing
 │       └── Video/                FFmpeg video decoder, frame triple buffer, Direct3D 11 renderer
 ├── tests/
 │   └── Streamy.Core.Tests/       xUnit tests
@@ -257,6 +279,8 @@ Developer switches:
 | `--send SERIAL OUT FILE...` | Send files and APKs the way a drop on the window does, and report the result |
 | `--files SERIAL OUT` | Run every file manager operation in a throwaway folder on the phone and report each one |
 | `--gallery SERIAL OUT` | Read the media library, then upload, find, thumbnail, download and delete a generated test picture |
+| `--viewer-test SERIAL OUT` | Copy and decode the newest HEIC and JPEG and a short video, and report timings |
+| `--places SERIAL OUT` | Read every item's location and report how many have one and how long it took |
 | `--render-icon DIR` | Write `app.ico` and a 512 px `icon.png` |
 
 ### Updating scrcpy
@@ -273,8 +297,8 @@ Versions follow [Semantic Versioning](https://semver.org/). Bump `<Version>` in 
 to [CHANGELOG.md](CHANGELOG.md), then tag and push:
 
 ```bash
-git tag v1.3.1
-git push origin v1.3.1
+git tag v1.4.1
+git push origin v1.4.1
 ```
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches the version, runs the tests, builds
@@ -288,6 +312,7 @@ The [release workflow](.github/workflows/release.yml) checks that the tag matche
 - [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) (MIT): Direct3D 11 bindings.
 - [NAudio](https://github.com/naudio/NAudio) (MIT): WASAPI playback.
 - [QRCoder](https://github.com/codebude/QRCoder) (MIT): the pairing QR code.
+- [GeoNames](https://www.geonames.org) (CC BY 4.0): the city and country lists used to name places.
 - Icons: Segoe Fluent Icons by Microsoft, built into Windows.
 
 ## License

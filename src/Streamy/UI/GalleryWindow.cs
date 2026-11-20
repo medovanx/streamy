@@ -25,14 +25,20 @@ internal sealed class GalleryWindow : Form
     private readonly List<Button> _buttons = [];
     private Button _open = null!, _download = null!, _delete = null!;
     private readonly ThumbnailLoader _loader;
+    private readonly GalleryDetails _details;
+    private readonly string _deviceName;
     private IReadOnlyList<MediaItem> _all = [];
     private IReadOnlyList<MediaAlbum> _albumList = [];
     private bool _busy;
     private string? _report;
+    private readonly LocationIndex _locations;
+    private CancellationTokenSource _scanCts = new();
+    private string? _scanStatus;
 
     public GalleryWindow(string serial, string deviceName)
     {
         _serial = serial;
+        _deviceName = deviceName;
         Text = $"{deviceName} gallery - Streamy";
         Icon = AppIcon.Load();
         ClientSize = new Size(1100, 700);
@@ -42,8 +48,10 @@ internal sealed class GalleryWindow : Form
         _loader = new ThumbnailLoader(serial, _grid.TileSize);
         _loader.Loaded += _grid.ThumbnailsArrived;
         _grid.Loader = _loader;
-        _grid.SelectionChanged += UpdateState;
-        _grid.ItemActivated += async item => await OpenAsync(item);
+        _locations = new LocationIndex(serial);
+        _details = new GalleryDetails(serial, _loader, _locations);
+        _grid.SelectionChanged += () => { UpdateState(); _details.ShowSelection(_grid.Selected); };
+        _grid.ItemActivated += View;
         _grid.DeleteRequested += async () => await DeleteSelectedAsync();
         _grid.ContextMenuStrip = BuildMenu();
 
@@ -53,13 +61,14 @@ internal sealed class GalleryWindow : Form
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = false };
         Button("Refresh", Glyph.Refresh, async () => await LoadAsync(), bar);
-        _open = Button("Open", Glyph.Forward, async () => { if (_grid.Selected is [var one]) await OpenAsync(one); }, bar);
+        _open = Button("View", Glyph.Gallery, () => { if (_grid.Selected is [var one]) View(one); return Task.CompletedTask; }, bar);
         _download = Button("Download", Glyph.Download, async () => await DownloadSelectedAsync(), bar);
         Button("Upload", Glyph.Upload, async () => await UploadAsync(), bar);
         _delete = Button("Delete", Glyph.Delete, async () => await DeleteSelectedAsync(), bar);
 
         var split = new Splitter { Dock = DockStyle.Left, Width = 3, BackColor = Color.FromArgb(0x30, 0x30, 0x30) };
         Controls.Add(_grid);
+        Controls.Add(_details);
         Controls.Add(split);
         Controls.Add(_albums);
         Controls.Add(bar);
@@ -77,14 +86,9 @@ internal sealed class GalleryWindow : Form
         try
         {
             _all = await AdbClient.Default.QueryMediaAsync(_serial);
-            _albumList = MediaStore.Albums(_all);
-            _albums.BeginUpdate();
-            _albums.Items.Clear();
-            foreach (var a in _albumList) _albums.Items.Add(a);
-            _albums.EndUpdate();
-            int index = Math.Max(0, _albumList.ToList().FindIndex(a => a.Name == keep));
-            if (_albums.Items.Count > 0) _albums.SelectedIndex = index;
+            FillAlbums(keep);
             if (_all.Count == 0) Report("No photos or videos on the phone");
+            _ = ScanPlacesAsync();
         }
         catch (Exception ex)
         {
@@ -97,8 +101,63 @@ internal sealed class GalleryWindow : Form
         }
     }
 
+    /// <summary>The folder albums, then the places found so far. Keeps the selected album when it still exists.</summary>
+    private void FillAlbums(string? keep)
+    {
+        _albumList = [.. MediaStore.Albums(_all), .. Places.Albums(_all, _locations.Place)];
+        _albums.BeginUpdate();
+        _albums.Items.Clear();
+        foreach (var a in _albumList) _albums.Items.Add(a);
+        _albums.EndUpdate();
+        int index = _albumList.ToList().FindIndex(a => a.Name == keep && a.Kind != AlbumKind.Heading);
+        _suppressAlbumChange = index >= 0 && _albums.SelectedIndex == -1 && keep is not null && _grid.Items.Count > 0
+            && _albumList[index].Items.Count == _grid.Items.Count;
+        if (_albums.Items.Count > 0) _albums.SelectedIndex = Math.Max(0, index);
+        _suppressAlbumChange = false;
+    }
+
+    private bool _suppressAlbumChange;
+
+    /// <summary>
+    /// Reads where new photos and videos were taken, in the background, then adds the Places section.
+    /// A second visit only reads items added since.
+    /// </summary>
+    private async Task ScanPlacesAsync()
+    {
+        _scanCts.Cancel();
+        _scanCts = new CancellationTokenSource();
+        var ct = _scanCts.Token;
+        var items = _all;
+        try
+        {
+            await _locations.ScanAsync(items, new Progress<(int Done, int Total)>(p =>
+            {
+                _scanStatus = p.Done < p.Total ? $"Finding places: {p.Done:N0} of {p.Total:N0}" : null;
+                if (!_busy) UpdateState();
+            }), ct);
+            if (ct.IsCancellationRequested || IsDisposed) return;
+            _scanStatus = null;
+            FillAlbums((_albums.SelectedItem as MediaAlbum)?.Name);
+            _details.ShowSelection(_grid.Selected);
+            UpdateState();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "places");
+            _scanStatus = null;
+        }
+    }
+
     private void ShowAlbum()
     {
+        if (_albums.SelectedItem is MediaAlbum { Kind: AlbumKind.Heading })
+        {
+            // Headings are not albums: move to the first entry under it.
+            if (_albums.SelectedIndex + 1 < _albums.Items.Count) _albums.SelectedIndex++;
+            return;
+        }
+        if (_suppressAlbumChange) return;
         if (_albums.SelectedItem is MediaAlbum album) _grid.Items = album.Items;
         _grid.Focus();
         UpdateState();
@@ -108,10 +167,27 @@ internal sealed class GalleryWindow : Form
     {
         if (e.Index < 0) return;
         var album = (MediaAlbum)_albums.Items[e.Index];
+        if (album.Kind == AlbumKind.Heading)
+        {
+            using var bg = new SolidBrush(_albums.BackColor);
+            e.Graphics.FillRectangle(bg, e.Bounds);
+            using var bold = new Font(Font, FontStyle.Bold);
+            TextRenderer.DrawText(e.Graphics, album.Name.ToUpperInvariant(), bold, Rectangle.Inflate(e.Bounds, -10, 0), SystemColors.GrayText,
+                TextFormatFlags.Bottom | TextFormatFlags.Left);
+            return;
+        }
         bool selected = (e.State & DrawItemState.Selected) != 0;
         using var back = new SolidBrush(selected ? Color.FromArgb(0x00, 0x5A, 0x9E) : _albums.BackColor);
         e.Graphics.FillRectangle(back, e.Bounds);
         var text = Rectangle.Inflate(e.Bounds, -10, 0);
+        if (album.Kind == AlbumKind.Place)
+        {
+            // A small pin before place names.
+            int size = (int)Math.Round(14 * DeviceDpi / 96.0);
+            using var pin = Glyph.Image(Glyph.MapPin, selected ? Color.White : SystemColors.GrayText, size);
+            e.Graphics.DrawImage(pin, text.X, e.Bounds.Y + (e.Bounds.Height - size) / 2);
+            text = new Rectangle(text.X + size + 6, text.Y, text.Width - size - 6, text.Height);
+        }
         var fore = selected ? Color.White : _albums.ForeColor;
         TextRenderer.DrawText(e.Graphics, album.Name, Font, text, fore, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.Left);
         TextRenderer.DrawText(e.Graphics, album.Items.Count.ToString("N0"), Font, text, selected ? Color.White : SystemColors.GrayText,
@@ -119,6 +195,27 @@ internal sealed class GalleryWindow : Form
     }
 
     // ---- Actions ------------------------------------------------------------------------------------------
+
+    /// <summary>Opens the built-in viewer at this item, to swipe through the open album.</summary>
+    private void View(MediaItem item)
+    {
+        try
+        {
+            var items = _grid.Items;
+            int index = items.ToList().FindIndex(i => i.Id == item.Id);
+            var viewer = new MediaViewer(_serial, _deviceName, items, Math.Max(0, index), _loader, _locations);
+            viewer.Deleted += () => _reloadAfterViewer = true;
+            viewer.FormClosed += async (_, _) => { if (_reloadAfterViewer) { _reloadAfterViewer = false; await LoadAsync(); } };
+            viewer.Show(this);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "open viewer");
+            Report("Could not open the viewer: " + ex.Message);
+        }
+    }
+
+    private bool _reloadAfterViewer;
 
     /// <summary>Copies the photo or video to a temporary folder and opens it with the PC's app for it.</summary>
     private async Task OpenAsync(MediaItem item)
@@ -281,6 +378,7 @@ internal sealed class GalleryWindow : Form
         string counts = $"{photos:N0} photos, {videos:N0} videos" +
             (sel.Count > 0 ? $", {sel.Count:N0} selected ({PhoneFiles.FormatSize(sel.Sum(i => i.Size))})" : "");
         if (sel is [var one]) counts += $". {one.Name}, {one.Taken.ToLocalTime():yyyy-MM-dd HH:mm}" + (one.Width > 0 ? $", {one.Width} × {one.Height}" : "");
+        if (_scanStatus is not null) counts += ". " + _scanStatus;
         _status.Text = _report is null ? counts : $"{_report}. {counts}";
         _report = null;
     }
@@ -302,7 +400,8 @@ internal sealed class GalleryWindow : Form
     private ContextMenuStrip BuildMenu()
     {
         var menu = new ContextMenuStrip();
-        var open = menu.Items.Add("Open", null, async (_, _) => { if (_grid.Selected is [var one]) await OpenAsync(one); });
+        var open = menu.Items.Add("View", null, (_, _) => { if (_grid.Selected is [var one]) View(one); });
+        var openApp = menu.Items.Add("Open in app", null, async (_, _) => { if (_grid.Selected is [var one]) await OpenAsync(one); });
         var download = menu.Items.Add("Download", null, async (_, _) => await DownloadSelectedAsync());
         var delete = menu.Items.Add("Delete", null, async (_, _) => await DeleteSelectedAsync());
         menu.Items.Add(new ToolStripSeparator());
@@ -310,7 +409,7 @@ internal sealed class GalleryWindow : Form
         menu.Opening += (_, e) =>
         {
             var sel = _grid.Selected;
-            open.Enabled = sel.Count == 1;
+            open.Enabled = openApp.Enabled = sel.Count == 1;
             download.Enabled = delete.Enabled = sel.Count > 0;
             if (_busy) e.Cancel = true;
         };
@@ -319,6 +418,7 @@ internal sealed class GalleryWindow : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        _scanCts.Cancel();
         _loader.Loaded -= _grid.ThumbnailsArrived;
         _loader.Dispose();
         base.OnFormClosed(e);

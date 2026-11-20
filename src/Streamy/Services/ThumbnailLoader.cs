@@ -53,6 +53,13 @@ public sealed class ThumbnailLoader : IDisposable
         }
     }
 
+    /// <summary>The cached thumbnail file (about 600 px on its long side), if it was fetched before.</summary>
+    public string? CachedFile(MediaItem item)
+    {
+        var file = Path.Combine(_cacheDir, item.CacheKey);
+        return File.Exists(file) ? file : null;
+    }
+
     public bool Failed(MediaItem item)
     {
         lock (_gate) return _failed.Contains(item.CacheKey);
