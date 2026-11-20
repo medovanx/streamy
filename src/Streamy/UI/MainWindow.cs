@@ -31,6 +31,9 @@ internal sealed class MainWindow : Form
     private readonly Button _apps = new() { Text = "Apps", AutoSize = true, Enabled = false };
     private readonly ToolTip _tips = new();
     private readonly DetailsPanel _details = new();
+    private readonly NotifyIcon _tray = new() { Text = "Streamy" };
+    private readonly Dictionary<string, NotificationWatcher> _watchers = [];
+    private string? _balloonSerial;
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 2000 };
     private readonly Dictionary<string, SessionWindow> _open = Sessions.Mirrors;
     private readonly HashSet<string> _reconnecting = [];
@@ -104,6 +107,14 @@ internal sealed class MainWindow : Form
         Controls.Add(bar);
         Controls.Add(_status);
 
+        _tray.Icon = AppIcon.Load();
+        _tray.DoubleClick += (_, _) => { Show(); if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Activate(); };
+        _tray.BalloonTipClicked += async (_, _) =>
+        {
+            // Clicking a phone notification opens that phone's window, where it can be answered.
+            if (_balloonSerial is { } serial && _devices.FirstOrDefault(d => d.Serial == serial && d.IsReady) is { } d)
+                await MirrorAsync(d.Serial, d.DisplayName);
+        };
         _poll.Tick += async (_, _) => await RefreshAsync();
         Shown += async (_, _) =>
         {
@@ -135,6 +146,42 @@ internal sealed class MainWindow : Form
         _files.Enabled = _gallery.Enabled = _apps.Enabled = row is { Device.IsReady: true };
     }
 
+    /// <summary>
+    /// With "Show the phone's notifications on this PC" on, one watcher per ready phone; they stop when the phone
+    /// goes or the setting is turned off.
+    /// </summary>
+    private void UpdateNotificationWatchers()
+    {
+        bool on = AppSettings.Current.PhoneNotifications;
+        _tray.Visible = on;
+        var ready = on ? _devices.Where(d => d.IsReady).ToDictionary(d => d.Serial) : [];
+        foreach (var serial in _watchers.Keys.ToList())
+        {
+            if (ready.ContainsKey(serial) && !_watchers[serial].HasExited) continue;
+            _watchers[serial].Dispose();
+            _watchers.Remove(serial);
+        }
+        foreach (var (serial, device) in ready)
+        {
+            if (_watchers.ContainsKey(serial)) continue;
+            var watcher = new NotificationWatcher(serial);
+            watcher.Posted += (s, app, n) => BeginInvoke(() => ShowPhoneNotification(s, device.DisplayName, app, n));
+            _watchers[serial] = watcher;
+        }
+    }
+
+    private void ShowPhoneNotification(string serial, string phone, string app, Core.Adb.PhoneNotification n)
+    {
+        if (!AppSettings.Current.PhoneNotifications) return;
+        _balloonSerial = serial;
+        string title = n.Title.Length > 0 ? $"{app}: {n.Title}" : app;
+        string text = n.Text.Length > 0 ? n.Text : n.Title;
+        if (_devices.Count(d => d.IsReady) > 1) text += $"\n{phone}";
+        _tray.ShowBalloonTip(6000, Clip(title, 63), Clip(text, 255), ToolTipIcon.None);
+    }
+
+    private static string Clip(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
+
     private async Task RefreshAsync()
     {
         if (_refreshing) return;
@@ -142,6 +189,7 @@ internal sealed class MainWindow : Form
         try
         {
             _devices = await AdbClient.Default.DevicesAsync();
+            UpdateNotificationWatchers();
             RememberWirelessDevices();
             var saved = AppSettings.Current.SavedDevices.Where(s => !_devices.Any(d => d.Serial == s.Endpoint)).ToList();
             if (++_pollCount % SavedReconnectEvery == 1) ReconnectSaved(saved);
@@ -518,6 +566,9 @@ internal sealed class MainWindow : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        foreach (var w in _watchers.Values) w.Dispose();
+        _tray.Visible = false;
+        _tray.Dispose();
         _poll.Dispose();
         _tips.Dispose();
         base.OnFormClosed(e);

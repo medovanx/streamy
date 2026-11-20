@@ -30,6 +30,7 @@ internal static class DevSwitches
             ["--viewer-test", var serial, var outFile] => Report(outFile, sb => ViewerTestAsync(sb, serial)),
             ["--places", var serial, var outFile] => Report(outFile, sb => PlacesTestAsync(sb, serial)),
             ["--map-test", var png] => MapTest(png),
+            ["--notify-test", var serial, var outFile] => Report(outFile, sb => NotifyTestAsync(sb, serial)),
             ["--apps", var serial, var outFile] => Report(outFile, sb => AppsTestAsync(sb, serial)),
             ["--drag-test", var serial, var outFile] => Report(outFile, sb => DragTestAsync(sb, serial)),
             ["--backup-test", var serial, var outFile] => Report(outFile, sb => BackupTestAsync(sb, serial)),
@@ -360,6 +361,29 @@ internal static class DevSwitches
         bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
         Console.WriteLine($"tiles {tiles}");
         return tiles > 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Starts a notification watcher, posts a test notification from the shell (tag "streamytest", which replaces
+    /// any earlier test one) and checks the watcher reports it once, with its title and text.
+    /// </summary>
+    private static async Task<bool> NotifyTestAsync(StringBuilder sb, string serial)
+    {
+        var got = new List<string>();
+        using var watcher = new NotificationWatcher(serial);
+        watcher.Posted += (_, app, n) => { lock (got) got.Add($"{app} | {n.Title} | {n.Text}"); };
+        await Task.Delay(7000);
+        int before;
+        lock (got) before = got.Count;
+        string stamp = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        await AdbClient.Default.ShellAsync(serial, ["cmd notification post -S bigtext -t 'Streamy test' streamytest 'Notification test at " + stamp + "'"]);
+        await Task.Delay(9000);
+        List<string> all;
+        lock (got) all = [.. got];
+        foreach (var line in all) sb.AppendLine("  posted: " + line);
+        bool ok = all.Count(l => l.Contains("Notification test at " + stamp, StringComparison.Ordinal)) == 1;
+        sb.AppendLine($"{(ok ? "ok  " : "FAIL")} the test notification was reported once ({before} others before it, none expected from the first round)");
+        return ok;
     }
 
     private static int RenderIcon(string dir)
